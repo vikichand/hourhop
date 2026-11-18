@@ -124,7 +124,7 @@ test('search keeps focus and caret while the timer ticks; keyboard-only start/sw
   const t0 = await p.locator('.timer').textContent();
   await p.waitForTimeout(3200); // three ticks
   expect(await p.locator('.timer').textContent()).not.toBe(t0);
-  expect(await p.evaluate(() => (document.activeElement as HTMLInputElement).getAttribute('type'))).toBe('search');
+  expect(await p.evaluate(() => document.activeElement?.getAttribute('role'))).toBe('searchbox');
   expect(await search.evaluate((el: HTMLInputElement) => [el.value, el.selectionStart])).toEqual(['bookkeeping alder', 4]);
 
   // Keyboard-only: ArrowDown to the first result, Enter switches, focus stays on that row.
@@ -137,7 +137,7 @@ test('search keeps focus and caret while the timer ticks; keyboard-only start/sw
   await p.keyboard.press('ArrowDown');
   await p.keyboard.press('ArrowUp');
   await p.keyboard.press('ArrowUp');
-  expect(await p.evaluate(() => (document.activeElement as HTMLElement).getAttribute('type'))).toBe('search');
+  expect(await p.evaluate(() => document.activeElement?.getAttribute('role'))).toBe('searchbox');
   await p.keyboard.press('Escape');
   await expect(search).toHaveValue('');
   await p.getByRole('button', { name: 'Pause', exact: true }).focus();

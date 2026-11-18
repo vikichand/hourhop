@@ -288,3 +288,17 @@ test('screenshot matrix for R0 design audit: states x themes x widths, including
     pop.close();
   }
 });
+
+test('search has exactly one clear control and form fields add no stray height [KWS-036]', async ({ open }) => {
+  const p = await sampleMode(open);
+  await p.getByRole('button', { name: 'All', exact: true }).click();
+  const search = p.getByRole('searchbox');
+  await search.fill('book');
+  await expect(p.getByRole('button', { name: 'Clear search' })).toHaveCount(1);
+  expect(await search.getAttribute('type'), 'type=search would add a second, native clear button').toBe('text');
+  const field = await p.getByLabel('Status').evaluate((el) => {
+    const f = el.closest('.field')!;
+    return f.getBoundingClientRect().height - (el.getBoundingClientRect().bottom - f.getBoundingClientRect().top);
+  });
+  expect(field, 'space below the Status select inside its field').toBeLessThan(4);
+});

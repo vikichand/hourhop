@@ -100,6 +100,8 @@ export function Checkbox({ label, checked, onChange }: { label: string; checked:
   );
 }
 
+// type="text" with role="searchbox": Chrome draws its own clear button on type="search", which would
+// duplicate ours.
 export function SearchBox({ value, onInput, onKeyDown, inputRef, label }: {
   value: string; onInput: (v: string) => void; onKeyDown?: (e: KeyboardEvent) => void;
   inputRef?: Ref<HTMLInputElement>; label: string;
@@ -107,7 +109,7 @@ export function SearchBox({ value, onInput, onKeyDown, inputRef, label }: {
   return (
     <div class="search" role="search">
       <Icon name="search" />
-      <input ref={inputRef} class="input" type="search" aria-label={label} placeholder={label} value={value}
+      <input ref={inputRef} class="input" type="text" role="searchbox" enterkeyhint="search" aria-label={label} placeholder={label} value={value}
         autocomplete="off" spellcheck={false}
         onInput={(e) => onInput((e.currentTarget as HTMLInputElement).value)} onKeyDown={onKeyDown} />
       {value && <IconButton label="Clear search" icon="close" onClick={() => onInput('')} />}
