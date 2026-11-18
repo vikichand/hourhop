@@ -2,6 +2,13 @@
 
 All notable changes to HourHop are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.1.1] - 2026-11-19
+
+### Fixed
+
+- Removed a large empty gap under the Status filter in the side panel; form fields in dialogs no longer reserve extra height.
+- The search box shows one clear (×) button instead of two.
+
 ## [0.1.0] - 2026-11-19
 
 First public release.
@@ -18,4 +25,5 @@ First public release.
 - Dark, light and system themes; keyboard navigation.
 - All data stays in the browser profile; no network requests, no analytics, one permission (`sidePanel`).
 
+[0.1.1]: https://github.com/vikichand/hourhop/releases/tag/v0.1.1
 [0.1.0]: https://github.com/vikichand/hourhop/releases/tag/v0.1.0
