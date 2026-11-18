@@ -68,7 +68,14 @@ export async function attachTarget(urlSuffix: string, timeoutMs = 5000) {
   /** Real trusted mouse click (a user gesture) at the centre of the first element matching `selector`. */
   const click = async (selector: string) => {
     const rect = await evaluate<{ x: number; y: number }>(`(() => { const r = document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`);
-    for (const type of ['mousePressed', 'mouseReleased']) await send('Input.dispatchMouseEvent', { type, x: rect.x, y: rect.y, button: 'left', clickCount: 1 });
+    await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: rect.x, y: rect.y, button: 'left', clickCount: 1 });
+    try {
+      await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: rect.x, y: rect.y, button: 'left', clickCount: 1 });
+    } catch (e) {
+      // A click that closes its own page (the popup's "Open work switcher") can race the reply.
+      // The click was delivered if the target is gone; callers assert the effect.
+      if ((await targetList()).some((t) => t.url.endsWith(urlSuffix))) throw e;
+    }
   };
   return { send, evaluate, click, close: () => ws.close() };
 }
