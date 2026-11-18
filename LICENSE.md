@@ -6,7 +6,7 @@ FSL-1.1-MIT
 
 ## Notice
 
-Copyright 2026 vikichand
+Copyright 2026 Vikash Chand
 
 ## Terms and Conditions
 

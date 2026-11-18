@@ -81,4 +81,4 @@ Bug reports and ideas are welcome as [issues](../../issues). Pull requests are n
 
 [Functional Source License 1.1, MIT Future License](LICENSE.md) (FSL-1.1-MIT). You may use, copy and modify HourHop for any purpose except offering a competing commercial product or service. Each release becomes available under the MIT license two years after it is published.
 
-Copyright 2026 vikichand.
+Copyright 2026 Vikash Chand.
