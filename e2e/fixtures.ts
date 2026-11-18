@@ -53,7 +53,13 @@ export async function attachTarget(urlSuffix: string, timeoutMs = 5000) {
   let id = 0;
   const pending = new Map<number, (v: any) => void>();
   ws.onmessage = (m) => { const d = JSON.parse(String(m.data)); pending.get(d.id)?.(d); pending.delete(d.id); };
-  const send = (method: string, params: object = {}) => new Promise<any>((r) => { pending.set(++id, r); ws.send(JSON.stringify({ id, method, params })); });
+  // Every command times out, so a target that closes mid-test fails with a reason instead of hanging.
+  const send = (method: string, params: object = {}, ms = 5000) => new Promise<any>((r, j) => {
+    const n = ++id;
+    const timer = setTimeout(() => { pending.delete(n); j(new Error(`CDP ${method} on ${urlSuffix} timed out`)); }, ms);
+    pending.set(n, (v) => { clearTimeout(timer); r(v); });
+    ws.send(JSON.stringify({ id: n, method, params }));
+  });
   const evaluate = async <T>(expression: string): Promise<T> => {
     const r = await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });
     if (r.result?.exceptionDetails) throw new Error(JSON.stringify(r.result.exceptionDetails));
@@ -142,4 +148,22 @@ export async function sampleMode(open: (p: string) => Promise<Page>, width = 360
 
 export function rowAction(p: Page, client: string, work: string) {
   return p.locator(`[data-row-action][aria-label$="${client}, ${work}"]`);
+}
+
+/**
+ * Opens the real toolbar popup from an extension page and attaches to it. The page is brought to the
+ * front first: openPopup() needs a focused browser window, which headless Linux CI does not guarantee.
+ */
+export async function openRealPopup(from: Page) {
+  for (let attempt = 1; ; attempt++) {
+    await from.bringToFront();
+    await expect.poll(() => from.evaluate(() => chrome.action.openPopup().then(() => 'ok', (e: Error) => e.message)), { timeout: 10_000 }).toBe('ok');
+    try {
+      const popup = await attachTarget('/popup.html');
+      await expect.poll(() => popup.evaluate<string>("document.body?.innerText ?? ''"), { timeout: 5000 }).toContain('Open work switcher');
+      return popup;
+    } catch (e) {
+      if (attempt >= 3) throw e;
+    }
+  }
 }

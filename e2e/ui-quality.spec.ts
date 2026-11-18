@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import type { Page } from '@playwright/test';
-import { attachTarget, EVIDENCE, expect, rowAction, sampleMode, test } from './fixtures';
+import { EVIDENCE, openRealPopup, expect, rowAction, sampleMode, test } from './fixtures';
 
 declare const chrome: any;
 declare const axe: any;
@@ -280,10 +280,7 @@ test('screenshot matrix for R0 design audit: states x themes x widths, including
   // The real toolbar popup, captured through its own DevTools target.
   for (const theme of ['dark', 'light'] as const) {
     await s.getByRole('button', { name: theme === 'dark' ? 'Dark' : 'Light', exact: true }).click();
-    await s.bringToFront();
-    await expect.poll(() => s.evaluate(() => chrome.action.openPopup().then(() => 'ok', (e: Error) => e.message))).toBe('ok');
-    const pop = await attachTarget('/popup.html');
-    await expect.poll(() => pop.evaluate<string>("document.body?.innerText ?? ''")).toContain('Open work switcher');
+    const pop = await openRealPopup(s);
     await new Promise((res) => setTimeout(res, 300));
     const img = await pop.send('Page.captureScreenshot', { format: 'png' });
     writeFileSync(path.join(EVIDENCE, `popup-real-${theme}.png`), Buffer.from(img.result.data, 'base64'));

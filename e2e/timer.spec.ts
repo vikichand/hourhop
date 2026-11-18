@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import {
-  assertLedgerInvariants, attachTarget, dumpDb, expect, extensionId, launch, rowAction, sampleMode, targetList, test,
+  assertLedgerInvariants, attachTarget, dumpDb, openRealPopup, expect, extensionId, launch, rowAction, sampleMode, targetList, test,
 } from './fixtures';
 
 declare const chrome: any;
@@ -11,9 +11,7 @@ const BODY_TEXT = "document.body?.innerText ?? ''";
 
 test('real toolbar popup: "Open work switcher" opens the side panel from a user gesture [T-307, KWS-018]', async ({ open }) => {
   const settings = await open('options.html');
-  await settings.evaluate(() => chrome.action.openPopup());
-  const popup = await attachTarget('/popup.html');
-  await expect.poll(() => popup.evaluate<string>(BODY_TEXT)).toContain('Open work switcher');
+  const popup = await openRealPopup(settings);
   const before = await targetList();
   expect(before.some((t) => t.url.endsWith('/sidepanel.html'))).toBe(false);
   await popup.click('button.btn'); // trusted mouse event through CDP Input, i.e. a real user gesture
@@ -30,8 +28,7 @@ test('popup and real side panel show one shared timer; pausing in one updates th
   await expect(tab.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
 
   const settings = await open('options.html');
-  await settings.evaluate(() => chrome.action.openPopup());
-  const popup = await attachTarget('/popup.html');
+  const popup = await openRealPopup(settings);
   await expect.poll(() => popup.evaluate<string>(BODY_TEXT)).toContain('VAT return Q3');
   await popup.click('.controls .btn-primary'); // Pause, inside the real popup
   await expect(tab.getByRole('button', { name: 'Resume', exact: true })).toBeVisible();
