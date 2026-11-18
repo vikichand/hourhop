@@ -1,0 +1,123 @@
+/*
+ * HourHop design tokens: the single source of exact visual values (docs/design.md §1, §4).
+ * Primitive -> semantic. Components and views use semantic tokens only; a test rejects raw colour,
+ * pixel and font literals anywhere else. Dark is the default; light is a deliberate translation.
+ */
+
+:root {
+  /* ---- primitives ---- */
+  --ink-950: #0d0e13;
+  --ink-900: #111218;
+  --ink-850: #1a1b24;
+  --ink-800: #22232e;
+  --ink-750: #2a2b38;
+  --ink-600: #45465a;
+  --ink-500: #72758e;
+  --ink-300: #a9afbf;
+  --ink-100: #f2f3f7;
+  --violet-300: #a99af4;
+  --violet-200: #c7bbff;
+  --violet-900: #2a2643;
+  --paper-50: #f6f7fa;
+  --paper-0: #ffffff;
+  --paper-100: #eceff4;
+  --paper-150: #e3e7ee;
+  --paper-200: #d8dde6;
+  --slate-500: #7d8495;
+  --slate-600: #5a6271;
+  --slate-900: #1b1c25;
+  --violet-600: #5846a9;
+  --violet-650: #4a3a94;
+  --violet-700: #5141a4;
+  --violet-50: #eeeafb;
+  --red-300: #f4a3a3;
+  --red-700: #b42318;
+  --red-950: #3a1c20;
+  --red-50: #fdecea;
+  --amber-300: #e9c46a;
+  --amber-800: #7a4a00;
+  --amber-950: #352b14;
+  --amber-50: #fdf3df;
+
+  /* ---- type ---- */
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-md: 14px;
+  --text-lg: 16px;
+  --text-xl: 17px;
+  --text-timer: clamp(26px, 9vw, 34px);
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --leading: 1.4;
+  --leading-tight: 1.2;
+  --tracking-eyebrow: 0.02em;
+
+  /* ---- space and shape (4px base) ---- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-full: 999px;
+  --border-w: 1px;
+  --focus-w: 2px;
+  --focus-offset: 2px;
+  --rail-w: 3px;
+  --control-h: 40px;
+  --control-h-sm: 32px;
+  --icon: 18px;
+  --dot: 8px;
+  --meter-h: 4px;
+  --popup-w: 340px;
+  --page-max: 880px;
+  --dialog-w: 480px;
+  --field-min: 160px;
+
+  /* ---- motion ---- */
+  --motion-fast: 120ms;
+  --motion-base: 160ms;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+
+  /* ---- semantic: light-dark(light, dark), resolved by color-scheme ---- */
+  --bg: light-dark(var(--paper-50), var(--ink-900));
+  --surface: light-dark(var(--paper-0), var(--ink-850));
+  --surface-quiet: light-dark(var(--paper-100), var(--ink-800));
+  --surface-hover: light-dark(var(--paper-150), var(--ink-750));
+  --surface-selected: light-dark(var(--violet-50), var(--violet-900));
+  --text: light-dark(var(--slate-900), var(--ink-100));
+  --text-2: light-dark(var(--slate-600), var(--ink-300));
+  --accent: light-dark(var(--violet-600), var(--violet-300));
+  --accent-hover: light-dark(var(--violet-650), var(--violet-200));
+  --on-accent: light-dark(var(--paper-0), var(--ink-950));
+  --border-strong: light-dark(var(--slate-500), var(--ink-500));
+  --border-subtle: light-dark(var(--paper-200), var(--ink-600));
+  --focus: light-dark(var(--violet-700), var(--violet-200));
+  --danger: light-dark(var(--red-700), var(--red-300));
+  --danger-surface: light-dark(var(--red-50), var(--red-950));
+  --warning: light-dark(var(--amber-800), var(--amber-300));
+  --warning-surface: light-dark(var(--amber-50), var(--amber-950));
+  --meter-track: light-dark(var(--paper-200), var(--ink-750));
+  --backdrop: light-dark(rgb(27 28 37 / 0.35), rgb(5 6 10 / 0.6));
+  --shadow-dialog: 0 12px 32px light-dark(rgb(27 28 37 / 0.18), rgb(0 0 0 / 0.45));
+}
+
+/* Theme: "system" follows the OS; explicit choices pin it. Dark is the fallback. */
+:root { color-scheme: dark; }
+:root:not([data-theme]) { color-scheme: light dark; }
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-fast: 0ms;
+    --motion-base: 0ms;
+  }
+}

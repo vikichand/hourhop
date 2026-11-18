@@ -1,0 +1,29 @@
+# Project-specific private planning and research (owner selected)
+myDocs/
+
+# Local secrets / configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Build and dependencies
+node_modules/
+.output/
+dist/
+coverage/
+playwright-report/
+test-results/
+
+# Test profiles, dumps and local databases
+.tmp/
+tmp/
+profiles/
+*.sqlite
+*.sqlite-*
+*.log
+.DS_Store
+
+# WXT generated types
+.wxt/
