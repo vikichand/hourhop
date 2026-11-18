@@ -8,6 +8,7 @@ import { browser } from 'wxt/browser';
 import { DomainError } from '../domain/timer';
 import { currentTimeZone, localDate } from '../domain/time';
 import type { Client, LocalSession, ProfileId, Target, WorkItem } from '../domain/types';
+import { latestOnly } from './latest';
 import { openLedger, StorageError, type GlobalState, type Ledger, type Theme } from '../storage/ledger';
 
 let ledgerPromise: Promise<Ledger> | null = null;
@@ -58,18 +59,11 @@ export function useApp() {
   const [ledger, setLedger] = useState<Ledger | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
-  const seq = useRef(0);
+  const latest = useRef(latestOnly());
 
   const reload = useCallback(async () => {
     const l = await getLedger();
-    const mine = ++seq.current;
-    try {
-      const s = await load(l);
-      // A slower, older read must never overwrite a newer one (KWS-033).
-      if (mine === seq.current) setSnap(s);
-    } catch (e) {
-      if (mine === seq.current) setError(errorMessage(e));
-    }
+    await latest.current(load(l), setSnap, (e) => setError(errorMessage(e)));
   }, []);
 
   useEffect(() => {

@@ -13,14 +13,28 @@ export const targetList = async () =>
   (await (await fetch(`http://127.0.0.1:${debugPort}/json/list`)).json()) as { url: string; webSocketDebuggerUrl: string }[];
 
 export async function launch(profileDir: string): Promise<BrowserContext> {
+  // BRANDED=1 runs installed Google Chrome. It ignores --load-extension, so the unpacked build is
+  // loaded through the CDP Extensions domain instead (needs --enable-unsafe-extension-debugging).
+  const branded = !!process.env.BRANDED;
   const ctx = await chromium.launchPersistentContext(profileDir, {
-    channel: 'chromium',
+    channel: branded ? 'chrome' : 'chromium',
     headless: process.env.HEADED ? false : true,
+    ignoreDefaultArgs: branded ? ['--disable-extensions'] : undefined,
     // A random loopback DevTools port lets tests reach the real toolbar popup, which Playwright does not
     // expose as a Page. Chrome writes the chosen port to DevToolsActivePort in the throwaway profile.
-    args: [`--disable-extensions-except=${EXT_PATH}`, `--load-extension=${EXT_PATH}`, '--remote-debugging-port=0'],
+    args: branded
+      ? ['--enable-unsafe-extension-debugging', '--remote-debugging-port=0']
+      : [`--disable-extensions-except=${EXT_PATH}`, `--load-extension=${EXT_PATH}`, '--remote-debugging-port=0'],
   });
-  debugPort = Number(readFileSync(path.join(profileDir, 'DevToolsActivePort'), 'utf8').split('\n')[0]);
+  const [port, browserPath] = readFileSync(path.join(profileDir, 'DevToolsActivePort'), 'utf8').trim().split('\n');
+  debugPort = Number(port);
+  if (branded) {
+    const ws = new WebSocket(`ws://127.0.0.1:${port}${browserPath}`);
+    await new Promise((r, j) => { ws.onopen = r; ws.onerror = j; });
+    const res = await new Promise<any>((r) => { ws.onmessage = (m) => r(JSON.parse(String(m.data))); ws.send(JSON.stringify({ id: 1, method: 'Extensions.loadUnpacked', params: { path: EXT_PATH } })); });
+    ws.close();
+    if (!res.result?.id) throw new Error(`Extensions.loadUnpacked failed: ${JSON.stringify(res)}`);
+  }
   return ctx;
 }
 

@@ -26,7 +26,7 @@ export interface AuditRecord {
   id?: number;
   sessionId: string;
   atUtc: string;
-  action: 'edit-times' | 'split' | 'discard';
+  action: 'edit-times' | 'split' | 'discard' | 'accept-review';
   reason: string;
   before: LocalSession;
   after: LocalSession[];
@@ -319,6 +319,22 @@ export class Ledger {
       const rec: AuditRecord = { sessionId: id, atUtc: nowIso, action: 'split', reason: reason.trim(), before: s, after: [a, b] };
       t.objectStore('audit').add(rec);
       t.objectStore('audit').add({ ...rec, sessionId: newId });
+      const st = await this.readState(t);
+      t.objectStore('state').put({ ...st, revision: st.revision + 1 });
+    });
+  }
+
+  /** Keeps a flagged interval exactly as recorded (the "keep" choice for sleep or clock flags). */
+  async acceptReview(id: string, reason: string) {
+    this.requireReason(reason);
+    const nowIso = new Date(this.now()).toISOString();
+    await this.tx(['sessions', 'audit', 'state'], 'readwrite', async (t) => {
+      const s = (await req(t.objectStore('sessions').get(id))) as LocalSession | undefined;
+      if (!s) throw new DomainError('CONFLICT', 'That session no longer exists.');
+      if (s.status !== 'needs-review') return;
+      const next: LocalSession = { ...s, status: 'stopped', reviewReasons: undefined, lastEditedAtUtc: nowIso, version: s.version + 1 };
+      t.objectStore('sessions').put(next);
+      t.objectStore('audit').add({ sessionId: id, atUtc: nowIso, action: 'accept-review', reason: reason.trim(), before: s, after: [next] } satisfies AuditRecord);
       const st = await this.readState(t);
       t.objectStore('state').put({ ...st, revision: st.revision + 1 });
     });

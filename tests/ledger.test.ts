@@ -165,6 +165,21 @@ describe('audited corrections and deletion [KWS-013, KWS-032, KWS-034]', () => {
     expect((audit[1]!.before as LocalSession).id).toBe('a2');
   });
 
+  it('a flagged session can be kept as recorded, with an audit entry and unchanged time', async () => {
+    const { l, clock } = await ledgers();
+    await l.command({ opId: op(), type: 'start', input: input('a', 'A') });
+    clock.now += 9 * 60 * MIN;
+    await l.command({ opId: op(), type: 'stop', sessionId: 'a' });
+    expect((await l.session('a'))!.status).toBe('needs-review');
+    await expect(l.acceptReview('a', '')).rejects.toThrow(/reason/);
+    await l.acceptReview('a', 'Worked late on the close');
+    const s = (await l.session('a'))!;
+    expect(s.status).toBe('stopped');
+    expect(s.reviewReasons).toBeUndefined();
+    expect(s.segments[0]!.elapsedMs).toBe(9 * 60 * MIN);
+    expect((await l.audit('a')).map((x) => x.action)).toEqual(['accept-review']);
+  });
+
   it('notes are stored verbatim, also on the running session', async () => {
     const { l } = await ledgers();
     await l.command({ opId: op(), type: 'start', input: input('a', 'A') });

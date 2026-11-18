@@ -47,7 +47,7 @@ Not in this version: any Karbon sign-in, client sync or time-entry submission (b
 | `pnpm check` | All of the above in order |
 | `node scripts/make-icons.mjs` | Re-render toolbar PNG icons from `public/icon/icon.svg` |
 
-E2E notes: tests use Playwright's bundled Chromium (branded Chrome no longer honours `--load-extension`), a throwaway profile per test and synthetic data only. Set `HEADED=1` to watch. Screenshots, axe results and timing data go to `.tmp/evidence/` (override with `EVIDENCE_DIR`). The suite opens a random loopback DevTools port on each throwaway profile to drive the real toolbar popup.
+E2E notes: tests use Playwright's bundled Chromium by default, a throwaway profile per test and synthetic data only. Set `BRANDED=1` to run the same suite on your installed Google Chrome instead; branded Chrome ignores `--load-extension`, so the fixture loads the build through the DevTools `Extensions.loadUnpacked` command. Set `HEADED=1` to watch. Screenshots, axe results and timing data go to `.tmp/evidence/` (override with `EVIDENCE_DIR`). The suite opens a random loopback DevTools port on each throwaway profile to drive the real toolbar popup.
 
 ## How it works
 

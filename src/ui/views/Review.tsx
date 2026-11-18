@@ -1,7 +1,7 @@
 import { APP } from '../../app-meta';
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import { copyText } from '../../domain/export';
-import { currentTimeZone, localDate, short } from '../../domain/time';
+import { allocateByLocalDate, currentTimeZone, localDate, short } from '../../domain/time';
 import { elapsedMs } from '../../domain/timer';
 import type { LocalSession } from '../../domain/types';
 import type { AuditRecord } from '../../storage/ledger';
@@ -112,6 +112,10 @@ export function Review() {
 function SessionRow({ app, session: x, now, onEdit, onCopied }: { app: AppApi; session: LocalSession; now: number; onEdit: () => void; onCopied: (m: string) => void }) {
   const isActive = x.status === 'running' || x.status === 'paused';
   const count = x.segments.length + (x.status === 'running' ? 1 : 0);
+  // Intervals crossing local midnight are attributed to each date (KWS-006), in the zone they were recorded in.
+  const byDate = new Map<string, number>();
+  for (const g of x.segments)
+    for (const [d, ms] of allocateByLocalDate(Date.parse(g.startedAtUtc), Date.parse(g.endedAtUtc), x.timeZone)) byDate.set(d, (byDate.get(d) ?? 0) + ms);
   const reasons = (x.reviewReasons ?? []).map((r) => (r === 'clock-reversal' ? 'clock moved backwards' : 'interval over 8 hours')).join(', ');
   return (
     <div class="session-row">
@@ -130,6 +134,7 @@ function SessionRow({ app, session: x, now, onEdit, onCopied }: { app: AppApi; s
           {x.roleName && <span class="xs muted">Role: {x.roleName}</span>}
           {x.taskTypeName && <span class="xs muted">Task type: {x.taskTypeName}</span>}
         </div>
+        {byDate.size > 1 && <p class="xs muted">Spans {byDate.size} dates: {[...byDate].map(([d, ms]) => `${d} ${short(ms)}`).join(' · ')}</p>}
         {x.userNote && <p class="note">{x.userNote}</p>}
       </div>
       <strong class="num">{short(elapsedMs(x, now))}</strong>
@@ -158,7 +163,16 @@ function EditDialog({ app, session, onClose }: { app: AppApi; session: LocalSess
   const [err, setErr] = useState('');
   useEffect(() => { app.ledger?.audit(session.id).then(setHistory); }, [session.id]);
 
-  const timesChanged = segs.some((g, i) => g.start !== toLocalInput(Date.parse(session.segments[i]!.startedAtUtc)) || g.end !== toLocalInput(Date.parse(session.segments[i]!.endedAtUtc)));
+  // The inputs show whole seconds. Only fields the user changed are sent; untouched ones keep their
+  // exact stored milliseconds, so an edit never shifts a boundary onto the neighbouring session.
+  const edits = segs.flatMap((g, index) => {
+    const orig = session.segments[index]!;
+    const os = Date.parse(orig.startedAtUtc), oe = Date.parse(orig.endedAtUtc);
+    const startMs = g.start === toLocalInput(os) ? os : new Date(g.start).getTime();
+    const endMs = g.end === toLocalInput(oe) ? oe : new Date(g.end).getTime();
+    return startMs === os && endMs === oe ? [] : [{ index, startMs, endMs }];
+  });
+  const timesChanged = edits.length > 0;
   const needReason = () => { if (!reason.trim()) { setErr('Enter a reason for this correction. It is kept in the edit history.'); return true; } return false; };
 
   const save = async () => {
@@ -166,7 +180,7 @@ function EditDialog({ app, session, onClose }: { app: AppApi; session: LocalSess
     if (timesChanged && needReason()) return;
     const ok = await app.act('edit', async (l) => {
       await l.updateDetails(session.id, { userNote: note, roleName: role.trim() || undefined, taskTypeName: task.trim() || undefined, billableIntent: billable });
-      if (timesChanged) await l.editTimes(session.id, segs.map((g, index) => ({ index, startMs: new Date(g.start).getTime(), endMs: new Date(g.end).getTime() })), reason);
+      if (timesChanged) await l.editTimes(session.id, edits, reason);
     });
     if (ok) onClose();
   };
@@ -174,6 +188,13 @@ function EditDialog({ app, session, onClose }: { app: AppApi; session: LocalSess
   return (
     <Dialog open title="Edit session" onClose={onClose} actions={<>
       <Button variant="danger" onClick={() => { setErr(''); if (!needReason()) setConfirmDiscard(true); }}>Discard…</Button>
+      {session.status === 'needs-review' && (
+        <Button variant="secondary" busy={app.busy === 'accept'} onClick={async () => {
+          setErr('');
+          if (needReason()) return;
+          if (await app.act('accept', (l) => l.acceptReview(session.id, reason))) onClose();
+        }}>Keep as recorded</Button>
+      )}
       <div class="grow" />
       <Button variant="quiet" onClick={onClose}>Cancel</Button>
       <Button variant="primary" busy={app.busy === 'edit'} onClick={save}>Save</Button>

@@ -125,3 +125,63 @@ test('settings: theme applies across surfaces; mode switch blocked while running
   expect(db.state.activeSessionId).toBeNull();
   await expect(p.getByRole('button', { name: 'Try sample data' })).toBeVisible();
 });
+
+test('editing only one field of a switched session keeps the untouched millisecond start (no false overlap) [KWS-013]', async ({ open }) => {
+  const p = await sampleMode(open);
+  await rowAction(p, ALDER, 'VAT return Q3').click();
+  await p.waitForTimeout(1300);
+  await p.getByRole('button', { name: 'All', exact: true }).click();
+  await rowAction(p, 'Brightwater Dental Group', 'Payroll run November').click();
+  await p.waitForTimeout(2300);
+  await p.getByRole('button', { name: 'Stop', exact: true }).click();
+  const before = (await dumpDb(p)).sessions.find((s) => s.label.work === 'Payroll run November');
+  const r = await open('review.html');
+  await r.getByRole('button', { name: 'Edit session: Payroll run November' }).click();
+  const dlg = r.getByRole('dialog', { name: 'Edit session' });
+  const end = dlg.getByLabel('Interval 1 end');
+  const v = await end.inputValue();
+  const endMs = new Date(v).getTime() + 60_000; // move the end one minute later
+  const local = new Date(endMs - new Date(endMs).getTimezoneOffset() * 60_000).toISOString().slice(0, 19);
+  await end.fill(local);
+  await dlg.getByLabel('Reason for time change, split or discard').fill('Finished later');
+  await dlg.getByRole('button', { name: 'Save' }).click();
+  await expect(dlg).toBeHidden();
+  const after = (await dumpDb(r)).sessions.find((s) => s.id === before.id);
+  expect(after.segments[0].startedAtUtc).toBe(before.segments[0].startedAtUtc);
+  assertLedgerInvariants(await dumpDb(r));
+});
+
+test('a session crossing midnight shows its time per local date; a flagged session can be kept as recorded [KWS-006]', async ({ open }) => {
+  const p = await sampleMode(open);
+  await rowAction(p, ALDER, 'VAT return Q3').click();
+  await p.getByRole('button', { name: 'Stop', exact: true }).click();
+  const day = await p.evaluate(() => new Promise<string>((res) => {
+    const r = indexedDB.open('hourhop');
+    r.onsuccess = () => {
+      const db = r.result;
+      const t = db.transaction('sessions', 'readwrite');
+      const st = t.objectStore('sessions');
+      st.getAll().onsuccess = (e: any) => {
+        const s = e.target.result[0];
+        const midnight = new Date(`${s.dateLocal}T00:00:00`);
+        const start = new Date(midnight.getTime() - 30 * 60_000).toISOString();
+        const end = new Date(midnight.getTime() + 9 * 3_600_000).toISOString(); // 9.5 h, flagged long
+        st.put({ ...s, startedAtUtc: start, status: 'needs-review', reviewReasons: ['long-interval'], timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          segments: [{ startedAtUtc: start, endedAtUtc: end, elapsedMs: 9.5 * 3_600_000 }] });
+        res(s.dateLocal);
+      };
+      t.oncomplete = () => db.close();
+    };
+  }));
+  const r = await open('review.html');
+  await expect(r.getByText(/^Spans 2 dates: \d{4}-\d{2}-\d{2} 30m · \d{4}-\d{2}-\d{2} 9h 00m$/)).toBeVisible();
+  await expect(r.getByText('Needs review: interval over 8 hours')).toBeVisible();
+  await r.getByRole('button', { name: /^Edit session/ }).click();
+  const dlg = r.getByRole('dialog', { name: 'Edit session' });
+  await dlg.getByLabel('Reason for time change, split or discard').fill('Overnight close, time is correct');
+  await dlg.getByRole('button', { name: 'Keep as recorded' }).click();
+  await expect(dlg).toBeHidden();
+  await expect(r.getByText('Needs review: interval over 8 hours')).toHaveCount(0);
+  const s = (await dumpDb(r)).sessions[0];
+  expect([s.status, s.segments[0].elapsedMs, day]).toEqual(['stopped', 9.5 * 3_600_000, s.dateLocal]);
+});

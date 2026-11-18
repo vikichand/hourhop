@@ -170,3 +170,60 @@ test('same-target select is a no-op; completed work asks before starting [KWS-00
   await p.getByRole('button', { name: 'Start anyway' }).click();
   await expect(p.locator('.tracking .work-title')).toHaveText('Monthly bookkeeping');
 });
+
+test('favorite + typed note survive restart and extension disable/re-enable; offline works; favorites stay in their namespace [KWS-008, KWS-010, KWS-015, KWS-016]', async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'hourhop-fav-'));
+  const openPanel = async (ctx: import('@playwright/test').BrowserContext) => {
+    const id = await extensionId(ctx);
+    const p = await ctx.newPage();
+    await p.setViewportSize({ width: 360, height: 900 });
+    await p.goto(`chrome-extension://${id}/sidepanel.html`);
+    return { p, id };
+  };
+  let ctx: import('@playwright/test').BrowserContext | undefined;
+  try {
+    ctx = await launch(dir);
+    await ctx.setOffline(true); // no network at all: capture must still work
+    let { p } = await openPanel(ctx);
+    await p.getByRole('button', { name: 'Try sample data' }).click();
+    await p.getByRole('button', { name: 'All', exact: true }).click();
+    await p.getByRole('button', { name: 'Add Payroll run November to favorites' }).click();
+    await rowAction(p, 'Brightwater Dental Group', 'Payroll run November').click();
+    await p.getByRole('button', { name: 'Add note' }).click();
+    await p.getByLabel('Note (plain text)').fill('Checked P11D figures\n- emailed client');
+    await p.getByRole('button', { name: 'Save note' }).click();
+    await expect(p.getByText('Note saved locally')).toBeVisible();
+    await ctx.close();
+
+    ctx = await launch(dir);
+    ({ p } = await openPanel(ctx));
+    await p.getByRole('button', { name: /^Favorites/ }).click();
+    await expect(rowAction(p, 'Brightwater Dental Group', 'Payroll run November')).toHaveText('Tracking');
+    await p.getByRole('button', { name: 'Edit note' }).click();
+    await expect(p.getByLabel('Note (plain text)')).toHaveValue('Checked P11D figures\n- emailed client');
+
+    // Disable and re-enable the extension (as an update or user toggle would), then check the ledger.
+    const mgmt = await ctx.newPage();
+    await mgmt.goto('chrome://extensions');
+    const extId = await extensionId(ctx);
+    await mgmt.evaluate(async (id) => { await chrome.management.setEnabled(id, false); await chrome.management.setEnabled(id, true); }, extId);
+    ({ p } = await openPanel(ctx));
+    await expect(p.locator('.tracking .work-title')).toHaveText('Payroll run November');
+    const db = await dumpDb(p);
+    assertLedgerInvariants(db);
+    expect(db.sessions[0].userNote).toBe('Checked P11D figures\n- emailed client');
+
+    await p.getByRole('button', { name: 'Stop', exact: true }).click();
+    const s = await ctx.newPage();
+    await s.goto(`chrome-extension://${extId}/options.html`);
+    await s.getByRole('button', { name: 'Local only', exact: true }).click();
+    await expect(p.getByRole('button', { name: 'Favorites 0' })).toBeVisible();
+    await p.getByRole('button', { name: 'Favorites 0' }).click();
+    await expect(p.getByText('No favorites yet')).toBeVisible();
+    await expect(p.getByText('Payroll run November')).toHaveCount(0);
+    await ctx.close();
+  } finally {
+    await ctx?.close().catch(() => undefined);
+    rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+  }
+});
