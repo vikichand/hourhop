@@ -1,8 +1,9 @@
 {
-  "name": "hourhop-karbon",
-  "description": "HourHop: switch work, track time. Local-first Chrome extension.",
+  "name": "hourhop",
+  "description": "HourHop: switch work, track time. A local-first Chrome extension for one-click client work switching.",
   "private": true,
   "version": "0.1.0",
+  "license": "FSL-1.1-MIT",
   "type": "module",
   "scripts": {
     "dev": "wxt",

@@ -1,70 +1,84 @@
 # HourHop
 
-Switch work. Track time. A local-first Chrome extension (Manifest V3) that keeps one timer running across client work, with a side panel for one-click switching, a toolbar popup, review, editing and export.
+Switch work. Track time. A Chrome extension that keeps one timer running across your client work, so you can hop between clients and work items in one click and review every interval at the end of the day.
 
-Internal project name: HourHop - Karbon. HourHop is an independent tool. It is not affiliated with, endorsed by or connected to Karbon, and this version does not read or write any Karbon data.
+HourHop is an independent tool. It is not affiliated with, endorsed by or connected to Karbon or any other practice-management product. It does not read or write Karbon data; you enter the time you capture into Karbon yourself.
 
-## Quick start
+## Install
+
+1. Download `hourhop-<version>-chrome.zip` from the [Releases](../../releases) page and unzip it somewhere you'll keep it (Chrome loads the extension from that folder, so don't delete it).
+2. Open `chrome://extensions` and switch on **Developer mode** (top right).
+3. Click **Load unpacked** and choose the unzipped folder.
+4. Pin HourHop from the puzzle-piece menu, click its icon, then **Open work switcher**.
+5. Choose **Track locally** to add your own clients, or **Try sample data** to explore with made-up ones.
+
+Requires Chrome 123 or newer. If your organization manages Chrome, Developer mode may be disabled; ask your IT team. To update, download the new zip, replace the folder contents and click the reload icon on the HourHop card in `chrome://extensions`. Your data is kept across updates.
+
+## Using it with Karbon
+
+1. Add each client and work item once with **Add work** (Track locally mode).
+2. Click **Start** on what you're working on. Clicking another item switches the timer in one step; pause and stop are on the timer card.
+3. Add a plain-text note to the running session if you like.
+4. At the end of the day, click **Review time**, check the sessions, correct anything with **Edit** (a reason is required and kept in the edit history), then use **Copy for Karbon** and paste into Karbon's time entry form.
+
+Karbon's own timer is separate, so don't run both for the same work. **Export all as CSV/JSON** in Review or Settings gives you a backup.
+
+## What it does
+
+- One timer for the whole browser profile. Starting other work stops the current session and starts a new one in a single storage transaction, so time is never counted twice.
+- Pause, resume and stop. Every session and interval is kept separately for each work item.
+- Search, Recent, Favorites and All, with a status filter. Starting completed work asks first.
+- Plain-text notes, role, task type and billable flag per session.
+- Review by day or week; audited edit, split, discard and "keep as recorded" for flagged sessions (over 8 hours, or the clock moved backwards); per-date totals for sessions that cross midnight.
+- CSV and JSON export, protected against spreadsheet formula injection.
+- Dark, light and system themes. Keyboard: `/` focuses search, arrow keys move through results, Enter starts.
+
+## Privacy
+
+Everything stays in your browser profile (IndexedDB). HourHop makes no network requests, has no analytics and asks for one permission, `sidePanel`. Uninstalling the extension or clearing site data deletes your data, so export first.
+
+## Build from source
 
 Requires Node 22+ and pnpm 10.
 
 ```sh
 pnpm install
-pnpm build
+pnpm build        # unpacked extension in .output/chrome-mv3
+pnpm zip          # installable zip in .output/
 ```
-
-Then load it in Chrome:
-
-1. Open `chrome://extensions` and switch on **Developer mode**.
-2. Click **Load unpacked** and choose the `.output/chrome-mv3` folder.
-3. Click the HourHop toolbar icon, then **Open work switcher**.
-4. Pick **Try sample data** (synthetic clients) or **Track locally** (your own clients).
-
-Use a separate Chrome profile for evaluation if you want to keep test data apart from your normal browsing.
-
-## What it does
-
-- One timer for the whole browser profile. Starting another work item stops the current session and starts a new one in a single IndexedDB transaction.
-- Pause, resume and stop. Each work item keeps every session and interval separately.
-- Search, Recent, Favorites and All, with a status filter. Completed work asks before starting.
-- Plain-text notes, role, task type and billable flag per session.
-- Budgets shown only when known, with scope and source. Recorded and local time are never added together.
-- Review by day or week, audited corrections (edit times, split, discard, each with a reason), CSV and JSON export, and "Copy for Karbon" text for manual entry.
-- Dark, light and system themes. Keyboard support: `/` focuses search, arrow keys move through results, Enter starts.
-
-Not in this version: any Karbon sign-in, client sync or time-entry submission (blocked until Karbon provides a supported, approved integration), voice dictation and AI notes.
-
-## Commands
 
 | Command | What it does |
 |---|---|
-| `pnpm build` | Production build into `.output/chrome-mv3` |
-| `pnpm zip` | Build and zip for distribution into `.output/` |
 | `pnpm dev` | WXT dev mode with reload |
 | `pnpm typecheck` | TypeScript strict check |
-| `pnpm test` | Vitest: domain, ledger (fake IndexedDB), UI architecture guards |
-| `pnpm e2e` | Playwright against the built extension in a fresh temporary Chromium profile (run `pnpm build` first) |
+| `pnpm test` | Vitest: domain logic, IndexedDB ledger (fake-indexeddb), UI architecture guards |
+| `pnpm e2e` | Playwright against the built extension in a fresh temporary profile (run `pnpm build` first) |
 | `pnpm check` | All of the above in order |
-| `node scripts/make-icons.mjs` | Re-render toolbar PNG icons from `public/icon/icon.svg` |
+| `node scripts/make-icons.mjs` | Re-render toolbar icons from `public/icon/icon.svg` |
 
-E2E notes: tests use Playwright's bundled Chromium by default, a throwaway profile per test and synthetic data only. Set `BRANDED=1` to run the same suite on your installed Google Chrome instead; branded Chrome ignores `--load-extension`, so the fixture loads the build through the DevTools `Extensions.loadUnpacked` command. Set `HEADED=1` to watch. Screenshots, axe results and timing data go to `.tmp/evidence/` (override with `EVIDENCE_DIR`). The suite opens a random loopback DevTools port on each throwaway profile to drive the real toolbar popup.
+E2E tests use Playwright's bundled Chromium by default, a throwaway profile per test and synthetic data only. Install it once with `pnpm exec playwright install chromium`. Set `BRANDED=1` to run them on your installed Google Chrome instead; branded Chrome ignores `--load-extension`, so the fixture loads the build through the DevTools `Extensions.loadUnpacked` command. Set `HEADED=1` to watch. Screenshots, accessibility results and timings go to `.tmp/evidence/` (override with `EVIDENCE_DIR`).
 
 ## How it works
 
-- `src/domain/`: pure TypeScript. Timer transitions, durations and local-date attribution, budgets, audited edits, export.
-- `src/storage/ledger.ts`: the IndexedDB ledger. Every timer command is one readwrite transaction over the global active pointer, the session records and an operation journal, so commands from the popup and side panel serialize in IndexedDB itself. Success is shown only after the transaction commits with strict durability.
+- `src/domain/`: pure TypeScript for timer transitions, durations and local-date attribution, budgets, audited edits and export.
+- `src/storage/ledger.ts`: the IndexedDB ledger. Every timer command is one readwrite transaction over the global active pointer, the session records and an operation journal, so commands from the popup and side panel serialize in IndexedDB itself. Success is shown only after the transaction commits.
 - `src/ui/`: Preact. `tokens.css` holds every colour, size and timing value; `components.tsx` is the only module that renders raw controls; `parts.tsx` and `views/` compose them. `tests/ui-guards.test.ts` enforces both rules.
-- `src/app-meta.ts`: the single source of product name and copy identity.
-- No background service worker, content script or host permission. The only permission is `sidePanel`. Elapsed time is always derived from stored timestamps, so closing every window or restarting the browser loses nothing.
+- No background service worker, content script or host permission. Elapsed time is derived from stored timestamps, so closing every window or restarting the browser loses nothing.
+
+Design rules are in [docs/design.md](docs/design.md).
 
 ## Limits
 
-- Data lives only in this browser profile. Uninstalling the extension or clearing site data deletes it, so export first.
-- A single interval over 8 hours, or one where the clock moved backwards, is kept as recorded and flagged for review.
-- Layout is designed for 320 to 600 CSS px. 200% zoom in a 360 px side panel (180 CSS px) overflows horizontally.
-- Chrome 123 or newer.
+- No Karbon sign-in, client sync or automatic time submission. Karbon's public API documents no per-user sign-in and no way to create time entries, so this would need Karbon's approval.
+- Data lives in one browser profile; there is no sync between devices.
+- Layout is designed for 320 to 600 CSS px wide. At 200% zoom in a narrow side panel it overflows sideways.
 
-## Design and policy docs
+## Contributing
 
-- `docs/design.md`: visual and interaction contract.
-- `docs/branches-and-releases.md`: release policy.
+Bug reports and ideas are welcome as [issues](../../issues). Pull requests are not being accepted at the moment.
+
+## License
+
+[Functional Source License 1.1, MIT Future License](LICENSE.md) (FSL-1.1-MIT). You may use, copy and modify HourHop for any purpose except offering a competing commercial product or service. Each release becomes available under the MIT license two years after it is published.
+
+Copyright 2026 vikichand.

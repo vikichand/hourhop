@@ -1,5 +1,5 @@
 // Integration capability model (T-104). Phase A ships only two local providers. There is deliberately
-// no Karbon provider: no documented per-user auth or time-entry write exists (integration-investigation.md).
+// no Karbon provider: Karbon's public API documents no per-user auth and no time-entry write.
 // `karbon-approved` gets added only after Phase B/C approval; nothing here makes network requests.
 
 import type { ProfileId } from '../domain/types';

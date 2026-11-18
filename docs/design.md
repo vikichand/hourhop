@@ -1,10 +1,10 @@
-# HourHop - Karbon — Product Design System
+# HourHop: Product Design System
 
 **Version:** 1.2  
 **Updated:** 2026-11-19  
 **Purpose:** Binding, reference-led UI and interaction contract for the HourHop browser extension, with testable anti-pattern replacements.  
 **Scope:** Manifest V3 side panel, toolbar popup, time review, onboarding, settings, and all application states.  
-**Status:** PROPOSED ART DIRECTION — owner supplied visual inspiration; actual extension not yet rendered or approved; live Karbon integration blocked
+**Status:** Implemented in 0.1.0 (see Section 10). KWS-nnn labels refer to the project's private requirement list. No live Karbon integration.
 
 ## 1. Identity, design intent, and source-of-truth contract
 
@@ -20,9 +20,9 @@
 
 ### R0 — Owner screenshot (included unchanged)
 
-- **Asset:** `myDocs/references/1000083021.jpg` (portrait consumer-rewards UI, visible `doppdock` branding and Nike card).
+- **Asset:** an owner-supplied screenshot of a third-party consumer rewards app. It is kept privately and is never published or bundled.
 - **Observed visual traits:** very dark navy-black/ink backdrop; slightly raised charcoal panels; low-chroma purple hairline/selected boundaries; subtle cyan at one corner; large white primary labels; muted cool-grey secondary labels; isolated CTA; dramatic vertical spacing; soft rounded outer shell; deliberate grouped cards; minimal visible icon families.
-- **Image-specific details we deliberately reject:** Doppdock/Nike trademarks and photos; loyalty metrics, social-proof row, coins and marketing CTA; irregular clipped/notched corners; bright iridescent multicolor button; exaggerated floating tabs; extra-large 30–40px gaps and tall marketing cards; unreadably faint grey-on-dark copy; dramatic glow and gradient overlays. A narrow productivity side panel cannot afford those costs.
+- **Image-specific details we deliberately reject:** third-party trademarks, logos and photos; loyalty metrics, social-proof row, coins and marketing CTA; irregular clipped/notched corners; bright iridescent multicolor button; exaggerated floating tabs; extra-large 30–40px gaps and tall marketing cards; unreadably faint grey-on-dark copy; dramatic glow and gradient overlays. A narrow productivity side panel cannot afford those costs.
 - **Adapt closely:** ink/charcoal layering, calm violet as a *single* accent, typographic contrast, sophisticated restrained shape and section spacing.
 - **Adapt rather than imitate:** one quiet active-session rail and restrained selected-work treatment instead of large ornamental borders; one subtle tonal primary action instead of rainbow gradient.
 - **Do not imitate:** typography, exact layout, branded imagery, UI notches, text content, and rewards mechanics.
@@ -169,7 +169,7 @@ At minimum test:
 | Frequent entire-tree redraw to update seconds | Isolated `TimerDisplay` update and keyed rows | Hold search focus for 60 ticks and assert caret/input unchanged |
 | Blue/green `Synced` after local persistence | `Saved locally`; `Confirmed in Karbon` only after verified receipt | No false-positive sync tests, disconnected fixtures |
 | Duplicate theme/control values per entrypoint | One `tokens.css` and shared component modules | CSS literal allowlist and import-graph CI test |
-| Copying reference logo, exact Nike card, proprietary images, or Karbon mark | Original HourHop design / neutral shapes; third-party compatibility in text only if cleared | Asset provenance and store metadata review |
+| Copying reference logos, branded cards, proprietary images, or the Karbon mark | Original HourHop design / neutral shapes; third-party compatibility in text only if cleared | Asset provenance and store metadata review |
 
 Exceptions: a **single** original, licensed branded illustration/gradient in a separately approved About/onboarding moment may be considered later if it adds a proven value and passes motion/contrast/performance tests. Do not apply any generic 'no gradients' rule beyond the narrow primary work interface.
 
@@ -186,7 +186,7 @@ Exceptions: a **single** original, licensed branded illustration/gradient in a s
 
 ### Evidence and provenance
 
-Design methodology source: permanent Project Source `Design-Systems-101-v1.0.md` (not copied into app). Research references and why they apply are documented in `myDocs/research.md`; original R0 image and mapping are in `myDocs/references/`. Consult Chrome, WCAG and WXT docs anew for version-sensitive implementation details. **Do not claim WCAG conformance or approved design until tested in a real browser.**
+Research notes and the original reference image are kept in the owner's private project notes and are not part of this repository. Consult Chrome, WCAG and WXT docs anew for version-sensitive implementation details. **Do not claim WCAG conformance or approved design until tested in a real browser.**
 
 ## 9. Governance and change control
 
