@@ -18,6 +18,8 @@ All notable changes to HourHop are listed here. The format follows [Keep a Chang
 ### Fixed
 
 - The note editor could clear its "saved" message on a slow machine.
+- Review's day strip has more room, and a day's hours no longer spill out of the highlighted day; on narrow cards hours stack over minutes.
+- The Hours this week chart and the Settings cards fit narrow windows (320px) without pushing the page sideways.
 
 ### Known limits
 
