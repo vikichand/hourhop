@@ -2,6 +2,17 @@
 
 All notable changes to HourHop are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.2.0] - 2026-11-19
+
+### Changed
+
+- New "control room" look: frosted glass over an ambient-lit dark room, rounded pill controls and the Manrope typeface, bundled with the extension.
+- The timer card is now a budget dial: the arc fills toward the work item's time budget and turns red when over. Pause, Resume and Stop are round controls.
+- Recent and Favorites show work as tiles; every work item has one play button that switches the timer, and pauses or resumes the running one.
+- New "This week" chart in the side panel and a week day strip plus hours chart in Review.
+- Review and Settings use a round navigation rail and glass cards.
+- Dark is now the default theme for new installs; System and Light remain in Settings.
+
 ## [0.1.1] - 2026-11-19
 
 ### Fixed
@@ -25,5 +36,6 @@ First public release.
 - Dark, light and system themes; keyboard navigation.
 - All data stays in the browser profile; no network requests, no analytics, one permission (`sidePanel`).
 
+[0.2.0]: https://github.com/vikichand/hourhop/releases/tag/v0.2.0
 [0.1.1]: https://github.com/vikichand/hourhop/releases/tag/v0.1.1
 [0.1.0]: https://github.com/vikichand/hourhop/releases/tag/v0.1.0
