@@ -4,7 +4,7 @@
 
 import { APP } from '../app-meta';
 import type { ComponentChildren, JSX, Ref } from 'preact';
-import { useEffect, useId, useRef, useState } from 'preact/hooks';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'preact/hooks';
 
 // ---------- icons: one original outline family, 1.75 stroke on a 24 grid ----------
 const PATHS = {
@@ -116,7 +116,8 @@ export function Select<T extends string>({ label, hideLabel, value, options, onC
     const o = options[i];
     if (o && o.value !== value) onChange(o.value);
   };
-  useEffect(() => {
+  // Layout effect: the outside-click listener must exist before the list is painted, or a fast click is missed.
+  useLayoutEffect(() => {
     if (!open) return;
     const outside = (e: PointerEvent) => { if (!wrap.current?.contains(e.target as Node)) setOpen(false); };
     document.addEventListener('pointerdown', outside);

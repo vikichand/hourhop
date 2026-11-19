@@ -415,6 +415,7 @@ test('the shared dropdown: mouse, keyboard, type-to-jump, Escape inside a dialog
   await expect(list).toHaveCount(0);
   await expect(status).toHaveText('All statuses');
   await status.click();
+  await expect(list).toBeVisible();
   await p.locator('.page-title, h1, .brand').first().click({ force: true });
   await expect(list).toHaveCount(0);
   await expect(status).toHaveText('All statuses');
