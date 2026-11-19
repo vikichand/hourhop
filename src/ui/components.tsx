@@ -4,7 +4,7 @@
 
 import { APP } from '../app-meta';
 import type { ComponentChildren, JSX, Ref } from 'preact';
-import { useEffect, useId, useRef } from 'preact/hooks';
+import { useEffect, useId, useRef, useState } from 'preact/hooks';
 
 // ---------- icons: one original outline family, 1.75 stroke on a 24 grid ----------
 const PATHS = {
@@ -25,6 +25,7 @@ const PATHS = {
   panel: 'M6.5 4.5h11a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3h-11a3 3 0 0 1-3-3v-9a3 3 0 0 1 3-3ZM14 4.5v15',
   refresh: 'M19.5 12a7.5 7.5 0 1 1-2.2-5.3M19.5 4.5v4.5H15',
   check: 'm5 12.5 4.5 4.5L19 7.5',
+  chevron: 'm6.5 9.5 5.5 5.5 5.5-5.5',
 } as const;
 export type IconName = keyof typeof PATHS;
 
@@ -90,16 +91,85 @@ export function TextField({ label, hideLabel, hint, multiline, inputRef, ...rest
   );
 }
 
+/**
+ * The one dropdown: a styled select-only combobox (WAI-ARIA APG pattern) in place of the native <select>, whose open
+ * list Chrome draws itself and cannot be themed. Keyboard: Enter, Space or arrows open; arrows, Home and End move;
+ * typing jumps to a matching option; Enter picks; Escape closes without closing a surrounding dialog; Tab leaves.
+ */
 export function Select<T extends string>({ label, hideLabel, value, options, onChange }: FieldBase & {
   value: T; options: { value: T; label: string }[]; onChange: (v: T) => void;
 }) {
   const id = useId();
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
+  const wrap = useRef<HTMLDivElement>(null);
+  const btn = useRef<HTMLButtonElement>(null);
+  const list = useRef<HTMLUListElement>(null);
+  const typed = useRef({ text: '', at: 0 });
+  const current = Math.max(0, options.findIndex((o) => o.value === value));
+  const last = options.length - 1;
+
+  const show = (i = current) => { setActive(i); setOpen(true); };
+  const choose = (i: number) => {
+    setOpen(false);
+    btn.current?.focus();
+    const o = options[i];
+    if (o && o.value !== value) onChange(o.value);
+  };
+  useEffect(() => {
+    if (!open) return;
+    const outside = (e: PointerEvent) => { if (!wrap.current?.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener('pointerdown', outside);
+    return () => document.removeEventListener('pointerdown', outside);
+  }, [open]);
+  useEffect(() => {
+    if (open) list.current?.querySelector(`[data-i="${active}"]`)?.scrollIntoView({ block: 'nearest' });
+  }, [open, active]);
+
+  const jump = (ch: string) => {
+    const now = Date.now();
+    typed.current = { text: now - typed.current.at < 600 ? typed.current.text + ch : ch, at: now };
+    const q = typed.current.text.toLowerCase();
+    const from = open ? active : current;
+    const order = [...options.keys()].map((k) => (from + 1 + k) % options.length);
+    const hit = order.find((i) => options[i]!.label.toLowerCase().startsWith(q)) ?? order.find((i) => options[i]!.label.toLowerCase().startsWith(q[0]!));
+    if (hit !== undefined) show(hit);
+  };
+  const onKey = (e: KeyboardEvent) => {
+    switch (e.key) {
+      case 'ArrowDown': e.preventDefault(); if (open) setActive(Math.min(last, active + 1)); else show(); break;
+      case 'ArrowUp': e.preventDefault(); if (open) setActive(Math.max(0, active - 1)); else show(); break;
+      case 'Home': if (open) { e.preventDefault(); setActive(0); } break;
+      case 'End': if (open) { e.preventDefault(); setActive(last); } break;
+      case 'Enter': case ' ': e.preventDefault(); if (open) choose(active); else show(); break;
+      // preventDefault stops the browser's dialog "cancel", so Escape closes only this list.
+      case 'Escape': if (open) { e.preventDefault(); e.stopPropagation(); setOpen(false); } break;
+      case 'Tab': setOpen(false); break;
+      default: if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); jump(e.key); }
+    }
+  };
   return (
-    <div class="field">
-      <label class={hideLabel ? 'vh' : 'field-label'} for={id}>{label}</label>
-      <select id={id} class="input" value={value} onChange={(e) => onChange((e.currentTarget as HTMLSelectElement).value as T)}>
-        {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-      </select>
+    <div class="field" ref={wrap}>
+      <span class={hideLabel ? 'vh' : 'field-label'} id={`${id}-label`}>{label}</span>
+      <div class="dropdown">
+        <button ref={btn} type="button" class="input dropdown-btn" role="combobox" aria-haspopup="listbox" aria-expanded={open}
+          aria-controls={`${id}-list`} aria-labelledby={`${id}-label`} aria-activedescendant={open ? `${id}-o${active}` : undefined}
+          onClick={() => (open ? setOpen(false) : show())} onKeyDown={onKey}>
+          <span class="dropdown-value">{options[current]?.label}</span>
+          <Icon name="chevron" />
+        </button>
+        {open && (
+          <ul ref={list} id={`${id}-list`} role="listbox" class="dropdown-menu" aria-labelledby={`${id}-label`}>
+            {options.map((o, i) => (
+              <li key={o.value} id={`${id}-o${i}`} data-i={i} role="option" aria-selected={o.value === value}
+                class={`dropdown-opt${i === active ? ' is-active' : ''}`}
+                onPointerMove={() => i !== active && setActive(i)} onPointerDown={(e) => e.preventDefault()} onClick={() => choose(i)}>
+                <span>{o.label}</span>{o.value === value && <Icon name="check" />}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }
@@ -299,7 +369,7 @@ export function Dial({ ratio, tone, children, ends }: {
       <svg viewBox="0 0 236 206" aria-hidden="true" focusable="false">
         <defs>
           <linearGradient id={`iri${id}`} x1="0" y1="1" x2="1" y2="0">
-            <stop offset="0" style={{ stopColor: 'var(--violet-200)' }} /><stop offset=".55" style={{ stopColor: 'var(--aqua-200)' }} /><stop offset="1" style={{ stopColor: 'var(--cream-200)' }} />
+            <stop offset="0" style={{ stopColor: 'var(--lilac-200)' }} /><stop offset=".55" style={{ stopColor: 'var(--aqua-200)' }} /><stop offset="1" style={{ stopColor: 'var(--cream-200)' }} />
           </linearGradient>
         </defs>
         {ticks}

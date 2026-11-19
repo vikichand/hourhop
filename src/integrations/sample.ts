@@ -19,7 +19,6 @@ export function sampleCatalog(nowMs: number): { clients: Client[]; work: WorkIte
     { key: 'con-lindqvist', profileId: P, kind: 'Contact', name: 'Sven Lindqvist' },
     { key: 'grp-harbour', profileId: P, kind: 'ClientGroup', name: 'Harbour Family Group' },
     { key: 'org-quarry', profileId: P, kind: 'Organization', name: 'Quarry Lane Bakery Cooperative (Northern Region Operations Division)' },
-    { key: 'org-xss', profileId: P, kind: 'Organization', name: '<img src=x onerror="alert(1)"> Test Co' },
     { key: 'con-zhang', profileId: P, kind: 'Contact', name: '张伟 (Zhang Wei)' },
   ];
 
@@ -42,7 +41,6 @@ export function sampleCatalog(nowMs: number): { clients: Client[]; work: WorkIte
       { kind: 'set', asOfUtc: asOf, lines: [{ kind: 'amount', scope: 'work-total', estimateAmount: 1200, currency: 'GBP', recordedAmount: 450 }] }),
     w('wi-1007', 'grp-harbour', 'Consolidated group accounts', 'Planned', { kind: 'unavailable', reason: 'denied' }, day(30)),
     w('wi-1008', 'org-quarry', 'Catch-up bookkeeping January to September with supplier statement reconciliation and fixed asset register rebuild', 'Ready To Start', time(600, 120)),
-    w('wi-1009', 'org-xss', '<script>alert("x")</script> Onboarding', 'Ready To Start', { kind: 'none', asOfUtc: asOf }),
     w('wi-1010', 'con-zhang', '年度税务申报 Annual filing', 'In Progress', time(0, 0)),
     w('wi-1011', 'org-quarry', 'Management accounts Q3', 'Ready To Start', time(300, 30), day(9)),
   ];

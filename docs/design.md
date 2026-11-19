@@ -9,7 +9,7 @@ KWS-nnn labels refer to the project's private requirement list.
 
 ## 1. Direction
 
-HourHop is the control room for an accountant's working day. The look is frosted glass floating over a dark room lit by two soft light pools: violet from the top left and warm lamp amber from the bottom right. Big rounded shapes, pill tabs and circular controls make it feel like a modern device panel, not a form.
+HourHop is the control room for an accountant's working day. The look is frosted glass floating over a charcoal room lit by one warm orange lamp from the bottom right. There is no purple: an earlier violet light pool and accent read as generic, so the owner replaced them with charcoal and orange (0.5.0). Big rounded shapes, pill tabs and circular controls make it feel like a modern device panel, not a form.
 
 The owner supplied two references, kept privately and never bundled:
 
@@ -30,9 +30,9 @@ Copied logos, brand names, photos, rewards content, clipped corners and the refe
 
 ## 2. Rules that keep it from turning into noise
 
-1. **Violet means live.** The accent marks only what is running or selected: the running dot, the active tile, the selected pill, today's bar, focus rings.
+1. **Orange means live.** The accent marks only what is running or selected: the running dot, the active tile, the selected pill or option, today's bar, focus rings, the toolbar badge.
 2. **One signature gradient, three places.** The lilac, aqua and cream gradient (`--iri`) appears only on the primary action (Pause/Resume, the live play button, primary buttons, the current rail item), the dial's arc, and the active timer card's edge and top sheen. Nowhere else.
-3. **Warnings never look live.** Near budget is amber, over budget is red (the dial arc turns red too). Neither uses violet.
+3. **Warnings never look live.** Near budget is yellow (kept clearly apart from the orange accent), over budget is red (the dial arc turns red too).
 4. **Numbers are the hero.** Time uses thin (200 weight) tabular numerals; labels are smaller, semibold sentence case. No all-caps eyebrows.
 5. **No fake data.** The dial arc appears only for a real positive time budget. Amount budgets, missing or unavailable budgets, and zero budgets show ticks and a text summary, never an invented percentage. The week chart uses only recorded local sessions.
 6. **Honest status, always in words.** "Saved on this device, not sent to Karbon", "Synced from Karbon at ...", "Not sent to Karbon", "Confirmed in Karbon: Not connected" or "Not sent automatically". Status uses text plus a dot, never colour alone.
@@ -44,14 +44,16 @@ Copied logos, brand names, photos, rewards content, clipped corners and the refe
 
 | Role | Dark | Light |
 |---|---|---|
-| Room background | `#0D0F1C` | `#EEF0F7` |
+| Room background | `#131314` charcoal | `#F2F1EF` |
+| Room light | one orange pool, 26% | one orange pool, 30% |
 | Glass fill | white 6% | white 62% |
-| Primary text | `#F4F3FA` | `#1A1B2E` |
-| Secondary text | `#B4B3CC` | `#45475F` |
-| Tertiary text | `#8C8BA8` | `#55576F` |
-| Accent (live) | `#A38BFF` | `#4B35D6` |
+| Menu (open dropdown) | `#1B1B1D`, opaque | `#FAF9F8`, opaque |
+| Primary text | `#F3F3F2` | `#1C1C1E` |
+| Secondary text | `#BCBCC1` | `#4A4A50` |
+| Tertiary text | `#8F8F95` | `#5B5B61` |
+| Accent (live) | `#FF9A52` | `#96410A` |
 | Signature gradient | `#CDBBFF` to `#A9E4F2` to `#F7E6B5` | same |
-| Warning | `#F4C15A` | `#8A5600` |
+| Warning | `#F0D45C` | `#6F5600` |
 | Danger | `#FF8A8A` | `#B3372F` |
 
 - **Type:** Manrope Variable (SIL Open Font License), bundled with the extension from `@fontsource-variable/manrope`; no web font requests.
@@ -81,7 +83,7 @@ Copied logos, brand names, photos, rewards content, clipped corners and the refe
 
 **First run:** ring, "Switch work. Track time.", two tiles (Track locally, Try sample data) with play buttons, and the plain statement that nothing connects to Karbon.
 
-Every surface uses the shared components in `src/ui/components.tsx` (Button, IconButton, RoundControl, PlayButton, Dial, Ring, WeekBars, Rail, FilterGroup, SearchBox, TextField, Select, Dialog, Banner, StatusText, Avatar) and the compositions in `src/ui/parts.tsx`. Only `components.tsx` may render raw form controls or dialogs.
+Every surface uses the shared components in `src/ui/components.tsx` (Button, IconButton, RoundControl, PlayButton, Dial, Ring, WeekBars, Rail, FilterGroup, SearchBox, TextField, Select, Dialog, Banner, StatusText, Avatar) and the compositions in `src/ui/parts.tsx`. Only `components.tsx` may render raw form controls or dialogs. Every dropdown is `Select`, a custom select-only combobox (WAI-ARIA pattern) styled like the inputs, with an opaque glass menu; the native `<select>` is not used anywhere because Chrome draws its open list itself and it cannot match the design. A guard test rejects any `<select>`.
 
 ## 5. Accessibility and responsiveness
 

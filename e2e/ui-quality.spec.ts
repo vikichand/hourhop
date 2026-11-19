@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import type { Page } from '@playwright/test';
-import { EVIDENCE, openRealPopup, expect, rowAction, sampleMode, spills, test } from './fixtures';
+import { choose, EVIDENCE, openRealPopup, expect, rowAction, sampleMode, spills, test } from './fixtures';
 
 declare const chrome: any;
 declare const axe: any;
@@ -59,7 +59,7 @@ test('axe WCAG 2.2 AA: panel (onboarding, running, paused, search, dialog), revi
   }
   await p.getByRole('button', { name: 'Pause', exact: true }).click();
   await p.getByRole('searchbox').fill('a');
-  await p.getByLabel('Status').waitFor();
+  await p.getByRole('combobox', { name: 'Status' }).waitFor();
   for (const theme of ['dark', 'light'] as const) {
     await setTheme(p, theme);
     results[`paused-search-${theme}`] = await axeViolations(p);
@@ -153,6 +153,17 @@ test('hostile catalog text renders as text, never markup [KWS-033]', async ({ op
   let dialogs = 0;
   const p = await sampleMode(open);
   p.on('dialog', (d) => { dialogs++; d.dismiss(); });
+  // Hostile names are seeded here, not shipped in the sample data colleagues see.
+  await p.evaluate(() => new Promise<void>((res) => {
+    const r = indexedDB.open('hourhop');
+    r.onsuccess = () => {
+      const t = r.result.transaction(['clients', 'work'], 'readwrite');
+      t.objectStore('clients').put({ key: 'org-xss', profileId: 'sample', kind: 'Organization', name: '<img src=x onerror="alert(1)"> Test Co' });
+      t.objectStore('work').put({ key: 'wi-xss', profileId: 'sample', clientKey: 'org-xss', title: '<script>alert("x")</script> Onboarding', status: 'Ready To Start', budget: { kind: 'none', asOfUtc: new Date().toISOString() } });
+      t.oncomplete = () => { r.result.close(); res(); };
+    };
+  }));
+  await p.reload();
   await p.getByRole('button', { name: 'All work', exact: true }).click();
   await p.getByRole('searchbox').fill('test co');
   await expect(p.getByText('<img src=x onerror="alert(1)"> Test Co').first()).toBeVisible();
@@ -379,9 +390,60 @@ test('search has exactly one clear control and form fields add no stray height [
   await search.fill('book');
   await expect(p.getByRole('button', { name: 'Clear search' })).toHaveCount(1);
   expect(await search.getAttribute('type'), 'type=search would add a second, native clear button').toBe('text');
-  const field = await p.getByLabel('Status').evaluate((el) => {
+  const field = await p.getByRole('combobox', { name: 'Status' }).evaluate((el) => {
     const f = el.closest('.field')!;
     return f.getBoundingClientRect().height - (el.getBoundingClientRect().bottom - f.getBoundingClientRect().top);
   });
   expect(field, 'space below the Status select inside its field').toBeLessThan(4);
+});
+
+test('the shared dropdown: mouse, keyboard, type-to-jump, Escape inside a dialog, outside click, accessible when open [KWS-031, KWS-036]', async ({ open }) => {
+  const p = await sampleMode(open, 320);
+  await p.getByRole('button', { name: 'All work', exact: true }).click();
+  const status = p.getByRole('combobox', { name: 'Status' });
+  const list = p.getByRole('listbox', { name: 'Status' });
+  await expect(status).toHaveAttribute('aria-expanded', 'false');
+  expect(await p.locator('select').count(), 'no native select anywhere').toBe(0);
+
+  // Mouse: open, the current option is marked, pick another; clicking outside closes without a change.
+  await status.click();
+  await expect(list.getByRole('option', { selected: true })).toHaveText(/Open \(not completed\)/);
+  await p.screenshot({ path: path.join(EVIDENCE, 'dropdown-open-dark-320.png') });
+  expect(await axeViolations(p)).toEqual([]);
+  for (const w of [320, 400]) { await p.setViewportSize({ width: w, height: 900 }); expect(await spills(p), `open list @${w}px`).toEqual([]); }
+  await list.getByRole('option', { name: 'All statuses' }).click();
+  await expect(list).toHaveCount(0);
+  await expect(status).toHaveText('All statuses');
+  await status.click();
+  await p.locator('.page-title, h1, .brand').first().click({ force: true });
+  await expect(list).toHaveCount(0);
+  await expect(status).toHaveText('All statuses');
+
+  // Keyboard: arrows open and move, Home/End, typing jumps, Enter picks and returns focus.
+  await status.focus();
+  await p.keyboard.press('ArrowDown');
+  await expect(list).toBeVisible();
+  await p.keyboard.press('Home');
+  await expect(status).toHaveAttribute('aria-activedescendant', /o0$/);
+  await p.keyboard.press('End');
+  await p.keyboard.type('c');
+  await p.keyboard.press('Enter');
+  await expect(status).toHaveText('Completed');
+  await expect(status).toBeFocused();
+
+  // Inside a dialog, Escape closes the list and leaves the dialog open.
+  await choose(p, 'Status', 'Open (not completed)');
+  await rowAction(p, ALDER, 'VAT return Q3').click();
+  await p.getByRole('button', { name: 'Stop', exact: true }).click();
+  const r = await open('review.html');
+  await r.getByRole('button', { name: /^Edit session/ }).first().click();
+  const dlg = r.getByRole('dialog', { name: 'Edit session' });
+  const billable = dlg.getByRole('combobox', { name: 'Billable' });
+  await billable.click();
+  await expect(dlg.getByRole('listbox', { name: 'Billable' })).toBeVisible();
+  await r.keyboard.press('Escape');
+  await expect(dlg.getByRole('listbox', { name: 'Billable' })).toHaveCount(0);
+  await expect(dlg).toBeVisible();
+  await r.keyboard.press('Escape');
+  await expect(dlg).toHaveCount(0);
 });

@@ -1,40 +1,39 @@
 /*
  * HourHop design tokens: the single source of exact visual values (docs/design.md).
- * "Control room" direction: frosted glass over an ambient-lit night room, violet for whatever is live,
- * one iridescent gradient (lilac, aqua, cream) reserved for the primary action, the dial arc and the
- * active timer card. Components and views use these tokens only; tests/ui-guards.test.ts enforces it.
+ * "Control room" direction: frosted glass over a charcoal room lit by one warm orange lamp, orange for
+ * whatever is live, one iridescent gradient (lilac, aqua, cream) reserved for the primary action, the dial
+ * arc and the active timer card. Components and views use these tokens only; tests/ui-guards.test.ts enforces it.
  * Colours resolve per theme with light-dark(light, dark) driven by color-scheme. Dark is the default.
  */
 @import '@fontsource-variable/manrope/index.css';
 
 :root {
-  /* ---- primitives ---- */
-  --ink-950: #07080f;
-  --ink-900: #0d0f1c;
-  --ink-850: #14172a;
-  --ink-500: #8c8ba8;
-  --ink-300: #b4b3cc;
-  --ink-100: #f4f3fa;
-  --violet-500: #6e5bd8;
-  --violet-400: #a38bff;
-  --violet-300: #bba9ff;
-  --violet-200: #cdbbff;
-  --violet-700: #4b35d6;
-  --violet-800: #3c28b8;
-  --violet-950: #16112e;
+  /* ---- primitives: neutral charcoal, one warm orange, the button gradient's lilac/aqua/cream ---- */
+  --char-950: #0c0c0d;
+  --char-900: #131314;
+  --char-850: #1b1b1d;
+  --char-500: #8f8f95;
+  --char-300: #bcbcc1;
+  --char-100: #f3f3f2;
+  --orange-200: #ffc49a;
+  --orange-300: #ffb27a;
+  --orange-400: #ff9a52;
+  --orange-700: #96410a;
+  --orange-800: #7a3407;
+  --orange-950: #1f1206;
+  --lilac-200: #cdbbff;
   --aqua-200: #a9e4f2;
   --cream-200: #f7e6b5;
-  --amber-400: #e8a24a;
-  --amber-300: #f4c15a;
-  --amber-800: #8a5600;
+  --yellow-300: #f0d45c;
+  --yellow-800: #6f5600;
   --red-300: #ff8a8a;
   --red-500: #e0524a;
   --red-700: #b3372f;
-  --paper-100: #eef0f7;
-  --paper-50: #f7f7fc;
-  --slate-900: #1a1b2e;
-  --slate-600: #45475f;
-  --slate-500: #55576f;
+  --paper-100: #f2f1ef;
+  --paper-50: #faf9f8;
+  --graphite-900: #1c1c1e;
+  --graphite-600: #4a4a50;
+  --graphite-500: #5b5b61;
   --white: #ffffff;
 
   /* ---- type ---- */
@@ -96,6 +95,7 @@
   --page-max: 1360px;
   --dialog-w: 520px;
   --field-min: 160px;
+  --menu-max-h: 280px;
   --glass-blur: 22px;
   --glow-blur: 70px;
   --halo: 6px;
@@ -106,42 +106,47 @@
   --ease: cubic-bezier(0.2, 0, 0, 1);
 
   /* ---- signature gradient (from the owner's reference "Activate" button) ---- */
-  --iri: linear-gradient(118deg, var(--violet-200) 0%, var(--aqua-200) 52%, var(--cream-200) 100%);
-  --iri-edge: linear-gradient(140deg, light-dark(rgb(110 91 216 / 0.55), rgb(205 187 255 / 0.55)), light-dark(rgb(90 180 210 / 0.35), rgb(169 228 242 / 0.25)), light-dark(rgb(30 32 60 / 0.08), rgb(255 255 255 / 0.08)));
-  --on-iri: var(--violet-950);
+  --iri: linear-gradient(118deg, var(--lilac-200) 0%, var(--aqua-200) 52%, var(--cream-200) 100%);
+  --iri-edge: linear-gradient(140deg, light-dark(rgb(150 65 10 / 0.40), rgb(255 255 255 / 0.32)), light-dark(rgb(90 180 210 / 0.30), rgb(169 228 242 / 0.22)), light-dark(rgb(28 28 30 / 0.08), rgb(255 255 255 / 0.06)));
+  --on-iri: var(--char-950);
 
   /* ---- semantic colours: light-dark(light, dark) ---- */
-  --bg: light-dark(var(--paper-100), var(--ink-900));
-  --bg-deep: light-dark(var(--paper-100), var(--ink-950));
-  --glow-a: light-dark(rgb(140 120 255 / 0.42), rgb(110 91 216 / 0.55));
-  --glow-b: light-dark(rgb(255 180 90 / 0.36), rgb(232 162 74 / 0.36));
+  --bg: light-dark(var(--paper-100), var(--char-900));
+  --bg-deep: light-dark(var(--paper-100), var(--char-950));
+  /* One warm lamp only; the second light pool is off. */
+  --glow-a: transparent;
+  --glow-b: light-dark(rgb(255 160 90 / 0.30), rgb(255 140 60 / 0.26));
   --glass: light-dark(rgb(255 255 255 / 0.62), rgb(255 255 255 / 0.06));
   --glass-strong: light-dark(rgb(255 255 255 / 0.78), rgb(255 255 255 / 0.10));
   --glass-solid: light-dark(var(--white), rgb(255 255 255 / 0.16));
   --glass-hover: light-dark(rgb(255 255 255 / 0.92), rgb(255 255 255 / 0.13));
-  --card-active: light-dark(rgb(255 255 255 / 0.72), rgb(24 22 48 / 0.55));
-  --line: light-dark(rgb(30 32 60 / 0.12), rgb(255 255 255 / 0.12));
-  --line-strong: light-dark(rgb(30 32 60 / 0.30), rgb(255 255 255 / 0.30));
+  /* Opaque: an open menu must stay readable over whatever sits beneath it. */
+  --menu-bg: light-dark(var(--paper-50), var(--char-850));
+  --card-active: light-dark(rgb(255 255 255 / 0.72), rgb(38 38 41 / 0.60));
+  --line: light-dark(rgb(28 28 30 / 0.12), rgb(255 255 255 / 0.12));
+  --line-strong: light-dark(rgb(28 28 30 / 0.30), rgb(255 255 255 / 0.30));
   --inner-hi: light-dark(rgb(255 255 255 / 0.9), rgb(255 255 255 / 0.08));
-  --text: light-dark(var(--slate-900), var(--ink-100));
-  --text-2: light-dark(var(--slate-600), var(--ink-300));
-  --text-3: light-dark(var(--slate-500), var(--ink-500));
-  --accent: light-dark(var(--violet-700), var(--violet-400));
-  --accent-strong: light-dark(var(--violet-800), var(--violet-300));
-  --accent-soft: light-dark(rgb(75 53 214 / 0.10), rgb(163 139 255 / 0.12));
-  --accent-line: light-dark(rgb(75 53 214 / 0.30), rgb(163 139 255 / 0.32));
-  --accent-glow: light-dark(rgb(75 53 214 / 0.30), rgb(163 139 255 / 0.45));
-  --on-accent: light-dark(var(--white), var(--violet-950));
-  --focus: light-dark(var(--violet-700), var(--violet-200));
-  --warning: light-dark(var(--amber-800), var(--amber-300));
+  --text: light-dark(var(--graphite-900), var(--char-100));
+  --text-2: light-dark(var(--graphite-600), var(--char-300));
+  --text-3: light-dark(var(--graphite-500), var(--char-500));
+  --accent: light-dark(var(--orange-700), var(--orange-400));
+  --accent-strong: light-dark(var(--orange-800), var(--orange-300));
+  --accent-soft: light-dark(rgb(150 65 10 / 0.10), rgb(255 154 82 / 0.12));
+  --accent-line: light-dark(rgb(150 65 10 / 0.30), rgb(255 154 82 / 0.34));
+  --accent-glow: light-dark(rgb(150 65 10 / 0.26), rgb(255 154 82 / 0.38));
+  --on-accent: light-dark(var(--white), var(--orange-950));
+  --focus: light-dark(var(--orange-700), var(--orange-200));
+  /* Yellow, not amber: near-budget must never be mistaken for the orange "live" accent. */
+  --warning: light-dark(var(--yellow-800), var(--yellow-300));
   --danger: light-dark(var(--red-700), var(--red-300));
   --danger-arc: light-dark(var(--red-700), var(--red-500));
   --danger-line: light-dark(rgb(179 55 47 / 0.35), rgb(255 138 138 / 0.40));
-  --track: light-dark(rgb(30 32 60 / 0.10), rgb(255 255 255 / 0.10));
-  --tick: light-dark(rgb(30 32 60 / 0.22), rgb(255 255 255 / 0.18));
-  --knob-off: light-dark(var(--slate-500), var(--ink-500));
-  --backdrop: light-dark(rgb(26 27 46 / 0.30), rgb(5 6 10 / 0.62));
-  --shadow-dialog: 0 24px 60px light-dark(rgb(26 27 46 / 0.22), rgb(0 0 0 / 0.55));
+  --track: light-dark(rgb(28 28 30 / 0.10), rgb(255 255 255 / 0.10));
+  --tick: light-dark(rgb(28 28 30 / 0.22), rgb(255 255 255 / 0.18));
+  --knob-off: light-dark(var(--graphite-500), var(--char-500));
+  --backdrop: light-dark(rgb(20 20 22 / 0.30), rgb(4 4 5 / 0.62));
+  --shadow-dialog: 0 24px 60px light-dark(rgb(20 20 22 / 0.22), rgb(0 0 0 / 0.55));
+  --shadow-menu: 0 12px 32px light-dark(rgb(20 20 22 / 0.16), rgb(0 0 0 / 0.5));
   --shadow-live: 0 0 0 var(--halo) var(--accent-soft), 0 8px 28px var(--accent-glow);
 }
 

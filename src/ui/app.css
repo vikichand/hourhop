@@ -125,6 +125,23 @@ textarea.input { padding: var(--space-3) var(--space-4); min-height: calc(var(--
 .search .input { border-radius: var(--radius-full); padding-left: calc(var(--space-4) * 2 + var(--icon) - var(--space-2)); padding-right: var(--control-h); }
 .search .input:focus-visible { outline: none; border-color: var(--accent-line); box-shadow: 0 0 0 var(--space-1) var(--accent-soft); }
 .search .icon-btn { position: absolute; right: var(--space-1); }
+/* ---- dropdown (Select): the closed control looks like an input; the open list is a small glass menu ---- */
+.dropdown { position: relative; }
+.dropdown-btn { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); text-align: left; cursor: pointer; }
+.dropdown-btn:hover { background: var(--glass-hover); }
+.dropdown-btn:focus-visible, .dropdown-btn[aria-expanded="true"] { outline: none; border-color: var(--accent-line); box-shadow: 0 0 0 var(--space-1) var(--accent-soft); }
+.dropdown-btn > .icon { color: var(--text-3); flex: none; transition: transform var(--motion-fast) var(--ease); }
+.dropdown-btn[aria-expanded="true"] > .icon { transform: rotate(180deg); }
+.dropdown-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dropdown-menu {
+  position: absolute; z-index: 20; left: 0; right: 0; top: calc(100% + var(--space-1)); margin: 0; padding: var(--space-1);
+  list-style: none; max-height: var(--menu-max-h); overflow-y: auto; border-radius: var(--radius-md);
+  border: var(--border-w) solid var(--line-strong); background: var(--menu-bg); box-shadow: var(--shadow-menu);
+}
+.dropdown-opt { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); min-height: var(--control-h-sm); padding: 0 var(--space-3); border-radius: var(--radius-sm); cursor: pointer; color: var(--text); }
+.dropdown-opt.is-active { background: var(--glass-hover); }
+.dropdown-opt[aria-selected="true"] { color: var(--accent); font-weight: var(--weight-semibold); }
+.dropdown-opt > .icon { flex: none; }
 .check { display: flex; align-items: center; gap: var(--space-2); min-height: var(--control-h); cursor: pointer; }
 .check input { width: var(--icon); height: var(--icon); accent-color: var(--accent); margin: 0; }
 
@@ -297,6 +314,8 @@ textarea.input { padding: var(--space-3) var(--space-4); min-height: calc(var(--
   .filter[aria-pressed="true"], .icon-btn[aria-pressed="true"], .day[aria-pressed="true"], .rail .icon-btn[aria-current="page"] { outline: var(--focus-w) solid Highlight; }
   .bar.today, .status-dot { background: Highlight; forced-color-adjust: none; }
   :focus-visible { outline-color: Highlight; }
+  .dropdown-menu { border: var(--border-w) solid ButtonText; }
+  .dropdown-opt.is-active { outline: var(--focus-w) solid Highlight; }
 }
 
 /* ---- small layout variants ---- */

@@ -18,6 +18,9 @@ All notable changes to HourHop are listed here. The format follows [Keep a Chang
 - HourHop now has a small background helper, runs the Karbon session check on Karbon's web app, and asks for the `storage`, `idle`, `alarms` and `notifications` permissions.
 - With "Pause when the computer sleeps" on (the default), a timer also pauses if Chrome is closed for more than three minutes, at the moment Chrome closed.
 - Sign in with Karbon (official, read-only) moves to a later phase; connecting through the Karbon login comes first.
+- New look: a charcoal background with one warm orange glow, and orange for whatever is live. The purple is gone; the gradient on the main buttons stays. Near budget is now yellow, so it can't be confused with the orange accent.
+- Custom dropdowns everywhere, matching the rest of the design, with full keyboard support.
+- Sample data no longer includes the test client with an HTML-like name.
 
 ## [0.4.0] - 2026-11-19
 

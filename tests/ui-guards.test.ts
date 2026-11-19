@@ -19,6 +19,10 @@ describe('one shared component system', () => {
     }
   });
 
+  it('every dropdown is the shared custom Select: no native <select> anywhere, not even in components.tsx', () => {
+    for (const { f, text } of ui) expect(code(text), f).not.toMatch(/<select\b|HTMLSelectElement/);
+  });
+
   it('only tokens.css holds raw colour, size and font values', () => {
     for (const { f, text } of src.filter(({ f }) => f.endsWith('.css') && !f.endsWith('tokens.css'))) {
       const c = code(text).replace(/@(media|container)[^{]*/g, ''); // breakpoints cannot use var()

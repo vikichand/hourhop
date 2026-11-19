@@ -15,8 +15,8 @@ import { openLedger, type Ledger } from '../storage/ledger';
 const AUTO_KEY = 'automation';
 const TICK = 'tick';
 /** Badge colours mirror tokens in src/ui/tokens.css (the badge API takes no CSS variables). */
-const BADGE_RUNNING = '#a38bff'; // --violet-400
-const BADGE_PAUSED = '#8c8ba8'; // --ink-500
+const BADGE_RUNNING = '#ff9a52'; // --orange-400
+const BADGE_PAUSED = '#8f8f95'; // --char-500
 
 type Auto = { autoPaused: AutoPaused; lastTickMs: number | null; alerted: string[] };
 

@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import {
-  assertLedgerInvariants, attachTarget, dumpDb, openRealPopup, expect, extensionId, launch, rowAction, sampleMode, targetList, test,
+  assertLedgerInvariants, attachTarget, choose, dumpDb, openRealPopup, expect, extensionId, launch, rowAction, sampleMode, targetList, test,
 } from './fixtures';
 
 declare const chrome: any;
@@ -164,7 +164,7 @@ test('play on the running item pauses it and play again resumes the same session
   expect(db.sessions).toHaveLength(1);
   expect(db.sessions[0].segments).toHaveLength(1);
   await p.getByRole('button', { name: 'All work', exact: true }).click();
-  await p.getByLabel('Status').selectOption('completed');
+  await choose(p, 'Status', 'Completed');
   await rowAction(p, ALDER, 'Monthly bookkeeping').click();
   await expect(p.getByRole('dialog', { name: 'Start completed work?' })).toBeVisible();
   await p.getByRole('button', { name: 'Cancel' }).click();

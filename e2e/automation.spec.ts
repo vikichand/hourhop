@@ -1,4 +1,4 @@
-import { expect, rowAction, sampleMode, spills, test } from './fixtures';
+import { choose, expect, rowAction, sampleMode, spills, test } from './fixtures';
 
 // Reckonry-style timer features: background badge, presets, timer settings and "start now, choose later".
 
@@ -18,7 +18,7 @@ test('timer settings save; a preset sets role and task type on the running timer
   const p = await sampleMode(open);
   const s = await open('options.html');
   await s.setViewportSize({ width: 1100, height: 1400 });
-  await s.getByLabel('Pause when idle (no keyboard or mouse)').selectOption('10');
+  await choose(s, 'Pause when idle (no keyboard or mouse)', 'After 10 minutes');
   await s.getByLabel("Resume when I'm back (only after an automatic pause)").check();
   await s.getByLabel('Preset name').fill('Client meeting');
   await s.getByLabel('Role').fill('Senior');
@@ -26,7 +26,7 @@ test('timer settings save; a preset sets role and task type on the running timer
   await s.getByRole('button', { name: 'Add preset' }).click();
   await expect(s.getByText('Client meeting')).toBeVisible();
   await s.reload();
-  await expect(s.getByLabel('Pause when idle (no keyboard or mouse)')).toHaveValue('10');
+  await expect(s.getByRole('combobox', { name: 'Pause when idle (no keyboard or mouse)' })).toHaveText('After 10 minutes');
   await expect(s.getByLabel("Resume when I'm back (only after an automatic pause)")).toBeChecked();
   expect(await spills(s)).toEqual([]);
 

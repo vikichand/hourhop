@@ -153,6 +153,12 @@ export async function sampleMode(open: (p: string) => Promise<Page>, width = 360
   return p;
 }
 
+/** Picks an option in the shared custom dropdown the way a person does: open it, click the option. */
+export async function choose(p: Page, label: string, option: string) {
+  await p.getByRole('combobox', { name: label }).click();
+  await p.getByRole('listbox', { name: label }).getByRole('option', { name: option, exact: true }).click();
+}
+
 export function rowAction(p: Page, client: string, work: string) {
   return p.locator(`[data-row-action][aria-label$="${client}, ${work}"]`);
 }
@@ -190,7 +196,8 @@ export async function spills(p: Page) {
       const name = `${el.tagName.toLowerCase()}.${String(el.className).trim().replace(/\s+/g, '.')} "${(el.textContent ?? '').trim().slice(0, 24)}"`;
       if (cs.overflowX === 'visible' && el.scrollWidth > el.clientWidth + 1) out.push(`${name} wider by ${el.scrollWidth - el.clientWidth}px`);
       // Height: boxes only. Plain text with tight leading (the big timer) reports taller glyphs than its line box.
-      if (cs.overflowY === 'visible' && el.firstElementChild && el.scrollHeight > el.clientHeight + 1 && el.tagName !== 'HTML' && el.tagName !== 'BODY') out.push(`${name} taller by ${el.scrollHeight - el.clientHeight}px`);
+      // An open dropdown list overlays what is below it by design; the list itself is still checked above.
+      if (cs.overflowY === 'visible' && el.firstElementChild && !el.querySelector('[role="listbox"]') && el.scrollHeight > el.clientHeight + 1 && el.tagName !== 'HTML' && el.tagName !== 'BODY') out.push(`${name} taller by ${el.scrollHeight - el.clientHeight}px`);
     }
     return [...new Set(out)];
   });
