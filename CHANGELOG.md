@@ -2,6 +2,27 @@
 
 All notable changes to HourHop are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.3.0] - 2026-11-19
+
+### Added
+
+- Connect Karbon: enter your firm's Karbon API keys and your Karbon email in Settings, and the work assigned to you (not completed) appears automatically, grouped by client, with Karbon statuses and due dates. It refreshes every 15 minutes while open, or on demand.
+- Real budgets from Karbon estimates: the work item total and your own allocation, with time already recorded in Karbon. Hourly rates are never shown.
+- Mark entered: after pasting a session into Karbon, mark it so it is not counted twice against the budget.
+- A roadmap for saving time into Karbon automatically, which needs Karbon to add an API for it (docs/roadmap.md).
+
+### Changed
+
+- HourHop now asks for access to one site, Karbon's API (`api.karbonhq.com`). It makes no request until Karbon keys are entered, and only ever reads.
+
+### Fixed
+
+- The note editor could clear its "saved" message on a slow machine.
+
+### Known limits
+
+- The Karbon integration is built and tested against Karbon's published API specification with a simulated Karbon; it has not yet been verified against a live Karbon account.
+
 ## [0.2.0] - 2026-11-19
 
 ### Changed
@@ -36,6 +57,7 @@ First public release.
 - Dark, light and system themes; keyboard navigation.
 - All data stays in the browser profile; no network requests, no analytics, one permission (`sidePanel`).
 
+[0.3.0]: https://github.com/vikichand/hourhop/releases/tag/v0.3.0
 [0.2.0]: https://github.com/vikichand/hourhop/releases/tag/v0.2.0
 [0.1.1]: https://github.com/vikichand/hourhop/releases/tag/v0.1.1
 [0.1.0]: https://github.com/vikichand/hourhop/releases/tag/v0.1.0
