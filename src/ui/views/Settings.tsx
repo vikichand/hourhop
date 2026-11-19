@@ -2,7 +2,8 @@ import { useState } from 'preact/hooks';
 import { APP } from '../../app-meta';
 import { sampleCatalog } from '../../integrations/sample';
 import { PROVIDERS } from '../../integrations/providers';
-import { useApp } from '../app-state';
+import { getLedger, useApp } from '../app-state';
+import { signInWithKarbon } from '../../integrations/karbon-mcp';
 import { Banner, Button, Dialog, FilterGroup, Icon, Rail, TextField } from '../components';
 import { useRailItems } from './nav';
 import { connectKarbon, disconnectKarbon, refreshKarbon } from '../../integrations/karbon-sync';
@@ -116,10 +117,34 @@ function KarbonCard({ app, onNotice }: { app: AppApi; onNotice: (m: string) => v
       onNotice(`Connected to Karbon. ${result.workCount} open ${result.workCount === 1 ? 'work item is' : 'work items are'} assigned to you.${result.switched ? '' : ' Stop the running timer, then switch to Karbon under Data mode.'}`);
     }
   };
+  const signIn = async () => {
+    const ok = await app.act('karbon-signin', async (l) => {
+      const report = await signInWithKarbon({ now: () => new Date().toISOString() });
+      await l.saveKarbonSignIn({ key: 'karbon:signin', report });
+    });
+    if (ok) onNotice(`Signed in to Karbon. Copy the connection report and send it to whoever maintains ${APP.brand}.`);
+  };
+  const copyReport = async () => {
+    const r = (await (await getLedger()).karbonSignIn())?.report;
+    try { await navigator.clipboard.writeText(JSON.stringify(r, null, 2)); onNotice("Connection report copied. It lists what Karbon offers, with none of your firm's data."); }
+    catch { app.setError('Copy failed. Your browser blocked clipboard access.'); }
+  };
   if (!k.connected) {
     return (
       <section class="glass card" aria-labelledby="t-karbon">
         <h2 id="t-karbon" class="card-title">Connect Karbon</h2>
+        <p class="small muted">
+          Sign in with your usual Karbon login on Karbon's own page. No keys or setup needed, and {APP.brand} asks Karbon for read-only
+          access. Beta: this version checks the connection and prepares a short report; your work list arrives in the next update.
+        </p>
+        <div><Button variant="primary" busy={app.busy === 'karbon-signin'} onClick={signIn}>Sign in with Karbon</Button></div>
+        {k.signIn && (
+          <div class="stack-tight" role="status">
+            <p class="small"><strong>Signed in to Karbon.</strong> Karbon offers {k.signIn.toolCount} {k.signIn.toolCount === 1 ? 'tool' : 'tools'} to {APP.brand}.</p>
+            <div><Button size="sm" onClick={copyReport}><Icon name="copy" />Copy connection report</Button></div>
+          </div>
+        )}
+        <h3 class="card-title card-title-sm">Or connect with your firm's API keys</h3>
         <p class="small muted">
           Pull in the work assigned to you, with real budgets, straight from Karbon. Read-only: {APP.brand} never changes anything in
           Karbon, and you still enter time in Karbon yourself with Copy for Karbon. Your firm's Karbon admin can give you the two keys
@@ -129,7 +154,7 @@ function KarbonCard({ app, onNotice }: { app: AppApi; onNotice: (m: string) => v
         <TextField label="AccessKey" type="password" autocomplete="new-password" value={accessKey} onInput={(e) => setAccessKey((e.currentTarget as HTMLInputElement).value)} />
         <TextField label="Your Karbon email" type="email" autocomplete="email" value={email} onInput={(e) => setEmail((e.currentTarget as HTMLInputElement).value)} />
         <p class="xs muted">These keys give full access to your whole firm's Karbon data, including changing it; {APP.brand} only reads. They are stored only in this browser and sent only to Karbon's official API.</p>
-        <div><Button variant="primary" busy={app.busy === 'karbon-connect'} onClick={connect}>Connect Karbon</Button></div>
+        <div><Button busy={app.busy === 'karbon-connect'} onClick={connect}>Connect Karbon</Button></div>
       </section>
     );
   }

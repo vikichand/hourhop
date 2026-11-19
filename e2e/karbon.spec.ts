@@ -135,3 +135,53 @@ test('Karbon connect failures are specific and nothing is stored', async ({ cont
   }));
   expect(stored).not.toContain('karbon:conn');
 });
+
+test('Sign in with Karbon: Karbon\'s login opens in a window, read-only scope, and a connection report with no data calls', async ({ context, open }) => {
+  const seen: { method: string; url: string; body: string; auth?: string }[] = [];
+  await context.route(/^https:\/\/(identity|mcp)\.karbonhq\.com\//, (route) => {
+    const r = route.request();
+    const u = new URL(r.url());
+    seen.push({ method: r.method(), url: r.url(), body: r.postData() ?? '', auth: r.headers().authorization });
+    const json = (body: unknown, headers: Record<string, string> = {}) => route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*', ...headers }, body: JSON.stringify(body) });
+    if (u.pathname === '/mcp/oauth/register') return json({ client_id: 'client-e2e', token_endpoint_auth_method: 'none' });
+    // Karbon's login page, already signed in: straight back to the loopback redirect with a code and the same state.
+    if (u.pathname === '/connect/authorize') return route.fulfill({ status: 302, headers: { location: `${u.searchParams.get('redirect_uri')}?code=code-e2e&state=${u.searchParams.get('state')}` } });
+    if (u.pathname === '/connect/token') return json({ access_token: 'tok-e2e', scope: 'mcp:public:read', token_type: 'Bearer' });
+    if (u.href === 'https://mcp.karbonhq.com/mcp') {
+      const msg = JSON.parse(r.postData() ?? '{}');
+      if (msg.id === undefined) return route.fulfill({ status: 202, headers: { 'access-control-allow-origin': '*' } });
+      const result = msg.method === 'initialize'
+        ? { protocolVersion: '2025-06-18', serverInfo: { name: 'karbon-mcp', version: '1' }, capabilities: { tools: {} } }
+        : { tools: [{ name: 'search_work_items', description: 'Find work items', inputSchema: { type: 'object' } }, { name: 'get_client', description: 'One client', inputSchema: { type: 'object' } }] };
+      return json({ jsonrpc: '2.0', id: msg.id, result }, { 'mcp-session-id': 'sess-e2e', 'access-control-expose-headers': 'mcp-session-id' });
+    }
+    return route.fulfill({ status: 404 });
+  });
+  // Nothing listens on the loopback port in real life either; the page reads the URL and closes the window.
+  await context.route('http://127.0.0.1:53682/**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<p>Return to HourHop</p>' }));
+
+  const s = await open('options.html');
+  await s.setViewportSize({ width: 1100, height: 1000 });
+  await s.getByRole('button', { name: 'Sign in with Karbon' }).click();
+  await expect(s.getByText('Karbon offers 2 tools to HourHop.')).toBeVisible();
+  await expect.poll(() => context.pages().some((p) => p.url().startsWith('http://127.0.0.1:53682'))).toBe(false); // window closed
+
+  const authorize = new URL(seen.find((r) => r.url.includes('/connect/authorize'))!.url);
+  expect(authorize.searchParams.get('scope')).toBe('mcp:public:read');
+  expect(authorize.searchParams.get('redirect_uri')).toBe('http://127.0.0.1:53682/callback'); // the only path Karbon accepts
+  expect(authorize.searchParams.get('code_challenge_method')).toBe('S256');
+  const mcp = seen.filter((r) => r.url === 'https://mcp.karbonhq.com/mcp');
+  expect(mcp.map((r) => JSON.parse(r.body).method)).toEqual(['initialize', 'notifications/initialized', 'tools/list']);
+  for (const r of mcp) expect(r.auth).toBe('Bearer tok-e2e');
+  for (const r of seen) expect(r.url).not.toContain('tok-e2e');
+  expect(seen.some((r) => /\/Error|cdn-cgi/.test(r.url)), 'the sign-in window reached the real Karbon').toBe(false);
+
+  // Stored: the tool list only. No token, no client ID, no firm data.
+  const stored = await s.evaluate(() => new Promise<any>((res) => {
+    const req = indexedDB.open('hourhop');
+    req.onsuccess = () => { const g = req.result.transaction('state').objectStore('state').get('karbon:signin'); g.onsuccess = () => { req.result.close(); res(g.result); }; };
+  }));
+  expect(stored.report.tools.map((t: any) => t.name)).toEqual(['search_work_items', 'get_client']);
+  expect(JSON.stringify(stored)).not.toContain('tok-e2e');
+  expect(await spills(s)).toEqual([]);
+});

@@ -3,6 +3,7 @@
 // pointer, the sessions and the operation journal, so concurrent commands from two windows serialize in
 // IndexedDB itself; no in-memory mutex or long-lived service worker is involved.
 
+import type { ConnectionReport } from '../integrations/karbon-mcp';
 import { assertDiscardable, editTimes, splitAt, type SegmentEdit } from '../domain/edit';
 import { DomainError, pause, resume, start, stop, type NewSessionInput, type Transition } from '../domain/timer';
 import type { Client, LocalSession, ProfileId, WorkItem } from '../domain/types';
@@ -60,7 +61,12 @@ export interface KarbonStatus {
   workCount?: number;
   /** Sessions recorded in Karbon mode exist, even if currently disconnected. */
   hasSessions: boolean;
+  /** "Sign in with Karbon" (beta): the latest connection report, if any. No tokens are kept. */
+  signIn?: { toolCount: number; reportUtc: string };
 }
+
+/** The last "Sign in with Karbon" connection report (tool list only: no token, no firm data). */
+export interface KarbonSignIn { key: 'karbon:signin'; report: ConnectionReport }
 
 const SYNC_LOCK_MS = 2 * 60_000;
 
@@ -259,10 +265,24 @@ export class Ledger {
   async karbonStatus(): Promise<KarbonStatus> {
     return this.tx(['state', 'sessions'], 'readonly', async (t) => {
       const c = (await req(t.objectStore('state').get('karbon:conn'))) as KarbonConn | undefined;
+      const si = (await req(t.objectStore('state').get('karbon:signin'))) as KarbonSignIn | undefined;
       const n = await req(t.objectStore('sessions').index('byProfileStart').count(IDBKeyRange.bound(['karbon', ''], ['karbon', '\uffff'])));
+      const signIn = Array.isArray(si?.report?.tools) ? { toolCount: si.report.tools.length, reportUtc: si.report.generatedUtc } : undefined;
       return c
-        ? { connected: true, email: c.email, userName: c.userName, lastSyncUtc: c.lastSyncUtc, lastError: c.lastError, workCount: c.workCount, hasSessions: n > 0 }
-        : { connected: false, hasSessions: n > 0 };
+        ? { connected: true, email: c.email, userName: c.userName, lastSyncUtc: c.lastSyncUtc, lastError: c.lastError, workCount: c.workCount, hasSessions: n > 0, signIn }
+        : { connected: false, hasSessions: n > 0, signIn };
+    });
+  }
+
+  async karbonSignIn(): Promise<KarbonSignIn | undefined> {
+    return this.tx(['state'], 'readonly', async (t) => (await req(t.objectStore('state').get('karbon:signin'))) as KarbonSignIn | undefined);
+  }
+
+  async saveKarbonSignIn(v: KarbonSignIn) {
+    await this.tx(['state'], 'readwrite', async (t) => {
+      t.objectStore('state').put(v);
+      const s = await this.readState(t);
+      t.objectStore('state').put({ ...s, revision: s.revision + 1 });
     });
   }
 

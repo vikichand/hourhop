@@ -14,12 +14,12 @@ test('manifest requests only sidePanel and Karbon\'s official API host: no conte
   expect(m.manifest_version).toBe(3);
   expect(m.permissions).toEqual(['sidePanel']);
   expect(m.optional_permissions).toBeUndefined();
-  expect(m.host_permissions).toEqual(['https://api.karbonhq.com/*']);
+  expect(m.host_permissions).toEqual(['https://api.karbonhq.com/*', 'https://identity.karbonhq.com/*', 'https://mcp.karbonhq.com/*', 'http://127.0.0.1:53682/*']);
   expect(m.content_scripts).toBeUndefined();
   expect(m.background).toBeUndefined();
   expect(m.web_accessible_resources).toBeUndefined();
   expect(m.externally_connectable).toBeUndefined();
-  expect(m.content_security_policy.extension_pages).toBe("script-src 'self'; object-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; connect-src 'self' https://api.karbonhq.com");
+  expect(m.content_security_policy.extension_pages).toBe("script-src 'self'; object-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; connect-src 'self' https://api.karbonhq.com https://identity.karbonhq.com https://mcp.karbonhq.com");
   expect(m.description).toContain('Not affiliated with or endorsed by Karbon');
   expect(m.name).toBe('HourHop');
 });
@@ -30,11 +30,11 @@ test('bundle has no eval, microphone, speech or AI code, no URL but Karbon\'s AP
   const forbidden = [
     /XMLHttpRequest/, /new WebSocket/, /sendBeacon/, /EventSource/, /\beval\s*\(/, /new Function\s*\(/,
     /getUserMedia/, /SpeechRecognition/, /webkitSpeech/, /MediaRecorder/, /\bLanguageModel\b/, /\bai\.(languageModel|summarizer)/,
-    /https?:\/\/(?!www\.w3\.org|api\.karbonhq\.com\b)/, /app\d*\.karbonhq\.com/i,
+    /https?:\/\/(?!www\.w3\.org|(api|identity|mcp)\.karbonhq\.com\b|127\.0\.0\.1:53682\/callback\b)/, /app\d*\.karbonhq\.com/i,
   ];
   for (const [f, src] of js) for (const re of forbidden) expect(re.test(src), `${path.basename(f)} matches ${re}`).toBe(false);
-  // fetch() exists only in the chunk that holds the Karbon client, and only alongside its pinned origin.
-  for (const [f, src] of js.filter(([, src]) => /\bfetch\s*\(/.test(src))) expect(src, path.basename(f)).toContain('https://api.karbonhq.com');
+  // fetch() exists only in chunks that hold a Karbon client, alongside its pinned origins.
+  for (const [f, src] of js.filter(([, src]) => /\bfetch\s*\(/.test(src))) expect(src, path.basename(f)).toMatch(/https:\/\/(api|mcp)\.karbonhq\.com/);
   // R0 reference image must never ship (docs/design.md §2).
   expect(all.some((f) => /\.(jpe?g|webp|gif)$/i.test(f))).toBe(false);
   // The reference lives in the private, untracked myDocs/; compare hashes when it is present.

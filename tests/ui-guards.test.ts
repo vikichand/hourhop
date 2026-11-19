@@ -51,7 +51,7 @@ describe('Phase A scope [KWS-035, KWS-017]', () => {
     for (const { f, text } of src.filter(({ f }) => /\.(tsx?|html)$/.test(f))) {
       const c = code(text);
       expect(c, f).not.toMatch(/getUserMedia|SpeechRecognition|webkitSpeech|MediaRecorder|LanguageModel|XMLHttpRequest|WebSocket|sendBeacon|document\.cookie|chrome\.cookies|innerHTML|dangerouslySetInnerHTML/);
-      if (!f.endsWith('src/integrations/karbon.ts')) expect(c, f).not.toMatch(/\bfetch\(/);
+      if (!/src\/integrations\/karbon(-mcp)?\.ts$/.test(f)) expect(c, f).not.toMatch(/\bfetch\(/);
     }
   });
 
@@ -68,6 +68,14 @@ describe('Phase A scope [KWS-035, KWS-017]', () => {
     expect(k).toMatch(/method: 'GET'/);
     expect(k).not.toMatch(/method: '(POST|PUT|PATCH|DELETE)'/);
     expect(k.match(/https?:\/\/[^'"`\s]+/g)).toEqual(['https://api.karbonhq.com']);
+  });
+
+  it('Sign in with Karbon talks only to Karbon\'s sign-in and MCP servers, read-only, and calls no data tool', () => {
+    const m = src.find(({ f }) => f.endsWith('src/integrations/karbon-mcp.ts'))!.text.split(/\r?\n/).filter((l) => !/^\s*\/\//.test(l)).join('\n');
+    expect(new Set(m.match(/https?:\/\/[^'"`\s)]+/g))).toEqual(new Set(['https://identity.karbonhq.com', 'https://mcp.karbonhq.com/mcp', 'http://127.0.0.1:53682/callback']));
+    expect(m).toContain("export const SCOPE = 'mcp:public:read';");
+    expect(m).not.toMatch(/mcp:public:write|data:write|publicapi|cookie_exchange|offline_access|tools\/call/);
+    expect(m).not.toMatch(/method: '(GET|PUT|PATCH|DELETE)'/);
   });
 
   it('never marks anything confirmed in Karbon: no code path sets confirmed status or an official entry id', () => {

@@ -2,6 +2,7 @@
 // own timer state: each one reads the durable ledger, and re-reads it whenever any surface commits
 // (BroadcastChannel), when it becomes visible again, or after its own command.
 
+import { KarbonSignInError } from '../integrations/karbon-mcp';
 import { APP } from '../app-meta';
 import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
 import { browser } from 'wxt/browser';
@@ -41,7 +42,7 @@ export interface Snapshot {
 
 export function errorMessage(e: unknown): string {
   if (e instanceof StorageError) return `Not saved. ${APP.brand} could not write to local storage, so your last action was not recorded. (${e.message})`;
-  if (e instanceof DomainError || e instanceof KarbonError) return e.message;
+  if (e instanceof DomainError || e instanceof KarbonError || e instanceof KarbonSignInError) return e.message;
   return `Something went wrong: ${(e as Error)?.message ?? String(e)}`;
 }
 
