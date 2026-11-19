@@ -22,15 +22,15 @@ Requires Chrome 123 or newer. If your organization manages Chrome, Developer mod
 
 Karbon has no "sign in with Karbon" for other apps, so HourHop uses the same two keys any Karbon API integration uses. Your firm's Karbon admin sets this up once:
 
-1. Register a developer account at [developers.karbonhq.com/register](https://developers.karbonhq.com/register) and ask Karbon to enable API v3 for the firm (Karbon turns it on by request). Karbon sends an **Application ID** for the registered application.
-2. In Karbon, go to **Settings**, then **Connected Apps**, then **API Applications**, open the application and copy its **AccessKey**.
+1. Register a developer account at [developers.karbonhq.com/register](https://developers.karbonhq.com/register) and ask Karbon to enable API v3 for the firm (Karbon turns it on by request). Karbon sends the **Application ID** by secure message when the application is registered.
+2. In Karbon, go to **Settings**, then **Connected Apps**, then **API Applications**, and open the application. Both keys are listed there: the Application ID (sent as the bearer token) and the **AccessKey**.
 3. Share the Application ID and AccessKey with the colleagues who will use HourHop, the way your firm shares other credentials.
 
-Each colleague then opens HourHop **Settings**, enters the Application ID, the AccessKey and the email they sign in to Karbon with, and clicks **Connect Karbon**. HourHop checks the keys, finds their Karbon user and switches to Karbon mode.
+Each colleague then opens HourHop **Settings**, enters the Application ID, the AccessKey and the email they sign in to Karbon with, and clicks **Connect Karbon**. HourHop checks the keys, finds their Karbon user and switches to Karbon mode. If the email is not found, type it exactly as it appears on their Karbon user profile.
 
 What happens next:
 
-- The work items assigned to you that aren't completed appear in the side panel, grouped by client, with Karbon's statuses and due dates. They refresh automatically every 15 minutes while HourHop is open, or straight away with **Refresh**.
+- The work items assigned to you that aren't completed (Planned, Ready To Start, In Progress and Waiting) appear in the side panel, grouped by client, with Karbon's statuses and due dates. Completed work is never downloaded. They refresh automatically every 15 minutes while HourHop is open, or straight away with **Refresh**.
 - Budgets come from each work item's Karbon estimates: the work item total and your own allocation, with time already recorded in Karbon. Hourly rates are never shown. Time you have tracked in HourHop but not yet entered in Karbon shows separately; it is never added to Karbon's figures.
 - After you paste a session into Karbon, press **Mark entered** in Review so it no longer counts as unentered time.
 
@@ -38,7 +38,7 @@ Please know before connecting:
 
 - **The keys can read the whole firm's Karbon data.** HourHop only asks Karbon for your assigned work and only shows you that, but the keys themselves are not limited to you. Treat them like a password. They are stored only in this browser profile, are sent only to `https://api.karbonhq.com`, are never shown again after saving, and are removed by **Disconnect** or **Delete all data**.
 - **HourHop never writes to Karbon.** Every request is a read (`GET`), enforced by tests on the shipped build.
-- **Not yet verified against a live Karbon account.** The integration is built and tested against Karbon's published API specification ([karbonhq/karbon-api-reference](https://github.com/karbonhq/karbon-api-reference), October 2026) with a simulated Karbon. If connecting fails, the message says why (rejected keys, API access not enabled, email not found, network); please open an issue with that message.
+- **Not yet verified against a live Karbon account.** The integration is built and tested against Karbon's published API specification ([karbonhq/karbon-api-reference](https://github.com/karbonhq/karbon-api-reference), version of 29 October 2026, last checked 19 November 2026) with a simulated Karbon that behaves as that specification describes. If connecting fails, the message says why (rejected keys, API access not enabled, email not found, network); please open an issue with that message.
 
 ## Using it day to day
 
@@ -60,7 +60,17 @@ Without Karbon keys, add each client and work item once with **Add work** (Track
 
 ## Screenshots
 
-All screenshots are from the real extension with made-up sample data.
+All screenshots are from the real extension with made-up data. The Karbon ones use a simulated Karbon, never a real account.
+
+<table>
+  <tr>
+    <td align="center" width="33%"><img src="docs/images/first-run.png" alt="First run: Track locally, Connect Karbon or Try sample data"><br><sub>First run</sub></td>
+    <td align="center" width="33%"><img src="docs/images/karbon-side-panel.png" alt="Side panel in Karbon mode: synced from Karbon, VAT return Q3 running with 2h 35m of a 6h Karbon budget, and assigned work with Karbon statuses and due dates"><br><sub>Karbon mode</sub></td>
+    <td align="center" width="33%"><img src="docs/images/karbon-settings.png" alt="Settings after connecting: connected as Pat Example, five open work items, Refresh now and Disconnect"><br><sub>Connected to Karbon</sub></td>
+  </tr>
+</table>
+
+<p align="center"><img src="docs/images/karbon-connect.png" alt="Settings with the Connect Karbon form: Application ID, AccessKey and Karbon email"><br><sub>Connect Karbon</sub></p>
 
 <table>
   <tr>
@@ -71,7 +81,6 @@ All screenshots are from the real extension with made-up sample data.
 </table>
 
 <p align="center"><img src="docs/images/review.png" alt="Review page: today's total, the week's day strip, hours this week chart and sessions with Copy for Karbon and Edit"><br><sub>Review time</sub></p>
-<p align="center"><img src="docs/images/settings.png" alt="Settings page: appearance, data mode, Karbon connection status, your data and about"><br><sub>Settings</sub></p>
 
 ## Privacy
 

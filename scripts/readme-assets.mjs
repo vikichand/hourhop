@@ -48,7 +48,7 @@ async function banner() {
 }
 
 // ---------- 2. screenshots from the real extension ----------
-async function screenshots() {
+async function launch() {
   const profile = mkdtempSync(path.join(tmpdir(), 'hourhop-shots-'));
   const ctx = await chromium.launchPersistentContext(profile, {
     channel: 'chromium', headless: true, args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`, '--remote-debugging-port=0'],
@@ -57,7 +57,12 @@ async function screenshots() {
   const mgmt = await ctx.newPage();
   await mgmt.goto('chrome://extensions');
   const id = await mgmt.evaluate(async () => (await chrome.management.getAll()).find((e) => e.name === 'HourHop').id);
-  const url = (p) => `chrome-extension://${id}/${p}`;
+  const close = async () => { await ctx.close(); rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }); };
+  return { ctx, port, url: (p) => `chrome-extension://${id}/${p}`, close };
+}
+
+async function screenshots() {
+  const { ctx, port, url, close } = await launch();
 
   const p = await ctx.newPage();
   await p.setViewportSize({ width: 380, height: 1180 });
@@ -142,7 +147,6 @@ async function screenshots() {
   await s.setViewportSize({ width: 1240, height: 760 });
   await s.goto(url('options.html'));
   await s.getByRole('heading', { name: 'Appearance' }).waitFor();
-  await s.screenshot({ path: path.join(OUT, 'settings.png') });
 
   const r = await ctx.newPage();
   await r.setViewportSize({ width: 1240, height: 1040 });
@@ -172,10 +176,64 @@ async function screenshots() {
   await p.waitForTimeout(600);
   await p.screenshot({ path: path.join(OUT, 'side-panel-light.png'), fullPage: true });
 
-  await ctx.close();
-  rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+  await close();
+}
+
+// ---------- 3. Karbon mode, against a simulated api.karbonhq.com with made-up data (never the real Karbon) ----------
+async function karbonShots() {
+  const { ctx, url, close } = await launch();
+  const work = [
+    ['WK1', 'VAT return Q3', 'CK1', 'Alder & Finch Joinery Ltd', 'In Progress', '2026-11-30'],
+    ['WK2', 'Year-end accounts 2026', 'CK2', 'Brightwater Dental Group', 'Ready To Start', '2026-12-15'],
+    ['WK3', 'Payroll run November', 'CK2', 'Brightwater Dental Group', 'In Progress', '2026-11-28'],
+    ['WK4', 'Monthly bookkeeping', 'CK1', 'Alder & Finch Joinery Ltd', 'Planned', undefined],
+    ['WK5', 'Personal tax return 2025/26', 'CK3', 'Ngozi Okafor', 'Waiting', '2027-01-31'],
+  ].map(([WorkItemKey, Title, ClientKey, ClientName, PrimaryStatus, DueDate]) => ({ WorkItemKey, Title, ClientKey, ClientName, ClientType: ClientKey === 'CK3' ? 'Contact' : 'Organization', PrimaryStatus, DueDate }));
+  await ctx.route('https://api.karbonhq.com/**', (route) => {
+    const u = new URL(route.request().url());
+    const json = (body, status = 200) => route.fulfill({ status, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(body) });
+    if (u.pathname === '/v3/TenantSettings') return json({ TenantKey: 'DEMO-FIRM' });
+    if (u.pathname === '/v3/Users') return json({ value: [{ Id: 'UK1', Name: 'Pat Example', EmailAddress: 'pat@firm.example' }] });
+    if (u.pathname === '/v3/WorkItems') {
+      const st = /PrimaryStatus eq '([^']*)'/.exec(u.searchParams.get('$filter') ?? '')?.[1];
+      return json({ value: work.filter((w) => w.PrimaryStatus === st) });
+    }
+    if (u.pathname === '/v3/EstimateSummaries/WK1') return json({ value: [{ UserKey: 'UK1', EstimateMinutes: 240, ActualMinutes: 95 }, { UserKey: 'UK2', EstimateMinutes: 120, ActualMinutes: 60 }] });
+    if (u.pathname.startsWith('/v3/EstimateSummaries/')) return json({ value: [{ UserKey: 'UK1', EstimateMinutes: 180, ActualMinutes: 30 }] });
+    return json({}, 404);
+  });
+
+  const p = await ctx.newPage();
+  await p.setViewportSize({ width: 380, height: 900 });
+  await p.goto(url('sidepanel.html'));
+  await p.getByRole('button', { name: 'Try sample data' }).waitFor();
+  await p.waitForTimeout(400);
+  await p.screenshot({ path: path.join(OUT, 'first-run.png') });
+
+  const s = await ctx.newPage();
+  await s.setViewportSize({ width: 1240, height: 900 });
+  await s.goto(url('options.html'));
+  await s.getByLabel('Application ID').fill('demo-application-id');
+  await s.getByLabel('AccessKey').fill('eyJdemo.access.key');
+  await s.getByLabel('Your Karbon email').fill('pat@firm.example');
+  await s.getByRole('button', { name: 'Connect Karbon' }).scrollIntoViewIfNeeded();
+  await s.screenshot({ path: path.join(OUT, 'karbon-connect.png') });
+  await s.getByRole('button', { name: 'Connect Karbon' }).click();
+  await s.getByText('Connected as Pat Example').waitFor();
+  await s.screenshot({ path: path.join(OUT, 'karbon-settings.png') });
+
+  await p.setViewportSize({ width: 380, height: 1100 });
+  await p.reload();
+  await p.getByText(/^Synced from Karbon at /).waitFor();
+  await p.getByRole('button', { name: 'All work', exact: true }).click();
+  await p.locator('[data-row-action][aria-label$="Alder & Finch Joinery Ltd, VAT return Q3"]').click();
+  await p.locator('.dial-sub').filter({ hasText: 'budget' }).waitFor();
+  await p.waitForTimeout(600);
+  await p.screenshot({ path: path.join(OUT, 'karbon-side-panel.png'), fullPage: true });
+  await close();
 }
 
 await banner();
 await screenshots();
+await karbonShots();
 console.log(`Wrote README assets to ${OUT}`);
