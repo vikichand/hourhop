@@ -214,7 +214,7 @@ test('Karbon session check: observes Karbon\'s app without changing it and store
   await s.setViewportSize({ width: 1100, height: 1000 });
   await expect(s.getByText('2 Karbon requests recorded.')).toBeVisible();
   await expect(s.getByText("Karbon's timer was seen.")).toBeVisible();
-  const stored = await s.evaluate(() => (globalThis as any).chrome.storage.local.get('karbonProbe').then((r: any) => r.karbonProbe));
+  const stored = await s.evaluate(() => (globalThis as any).chrome.storage.session.get('karbonProbe').then((r: any) => r.karbonProbe));
   const list = Object.values(stored) as any[];
   expect(list.map((e) => `${e.method} ${e.origin}${e.path}`).sort()).toEqual([
     'GET https://us3.karbonhq.com/work/api/{key}/workItems', 'POST https://us3.karbonhq.com/time/api/{key}/stopwatches/{key}',

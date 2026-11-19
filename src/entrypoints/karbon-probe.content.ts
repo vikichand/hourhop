@@ -3,7 +3,7 @@
 // only (see src/integrations/karbon-probe.ts) and go to HourHop's isolated relay script via postMessage.
 
 import { defineContentScript } from 'wxt/utils/define-content-script';
-import { authScheme, isKarbonApi, pathTemplate, PROBE_SOURCE, shape, type ProbeEntry } from '../integrations/karbon-probe';
+import { authScheme, isJsonType, isKarbonApi, MAX_REPLY_CHARS, pathTemplate, PROBE_SOURCE, safeName, shape, type ProbeEntry } from '../integrations/karbon-probe';
 
 export default defineContentScript({
   matches: ['https://app2.karbonhq.com/*'],
@@ -14,20 +14,25 @@ export default defineContentScript({
   },
 });
 
-function report(method: string, url: string, status: number, headers: Record<string, string>, withCredentials: boolean, bodyText: string | undefined, replyText: string | undefined, contentType: string) {
+/** `reply` is either JSON text or an already-parsed object (XHR responseType "json"); oversized text is skipped. */
+function report(method: string, url: string, status: number, headers: Record<string, string>, withCredentials: boolean, bodyText: string | undefined, reply: string | object | undefined, contentType: string) {
   try {
     const u = new URL(url, location.href);
     if (!isKarbonApi(u)) return;
-    let body: ProbeEntry['body'], reply: ProbeEntry['reply'];
-    try { if (bodyText) body = shape(JSON.parse(bodyText)); } catch { /* not JSON */ }
-    try { if (replyText && /json/i.test(contentType)) reply = shape(JSON.parse(replyText)); } catch { /* not JSON */ }
-    if (!/json/i.test(contentType) && body === undefined) return;
+    const json = isJsonType(contentType);
+    let body: ProbeEntry['body'], replyShape: ProbeEntry['reply'];
+    try { if (bodyText && bodyText.length <= MAX_REPLY_CHARS) body = shape(JSON.parse(bodyText)); } catch { /* not JSON */ }
+    try {
+      if (json && typeof reply === 'string' && reply.length <= MAX_REPLY_CHARS) replyShape = shape(JSON.parse(reply));
+      else if (json && reply && typeof reply === 'object') replyShape = shape(reply);
+    } catch { /* not JSON */ }
+    if (!json && body === undefined) return;
     const lower = Object.fromEntries(Object.entries(headers).map(([k, v]) => [k.toLowerCase(), v]));
     const entry: ProbeEntry = {
       method: method.toUpperCase().slice(0, 10), origin: u.origin, path: pathTemplate(u.pathname),
-      query: [...new Set(u.searchParams.keys())].slice(0, 20).map((k) => k.slice(0, 40)), status,
-      auth: authScheme(lower.authorization), headers: Object.keys(lower).filter((h) => h !== 'cookie' && h !== 'authorization').sort().slice(0, 30),
-      withCredentials, body, reply, count: 1, lastUtc: new Date().toISOString(),
+      query: [...new Set([...u.searchParams.keys()].map(safeName))].slice(0, 20), status,
+      auth: authScheme(lower.authorization), headers: [...new Set(Object.keys(lower).filter((h) => h !== 'cookie' && h !== 'authorization').map(safeName))].sort().slice(0, 30),
+      withCredentials, body, reply: replyShape, count: 1, lastUtc: new Date().toISOString(),
     };
     window.postMessage({ source: PROBE_SOURCE, entry }, location.origin);
   } catch {
@@ -47,7 +52,8 @@ function install() {
       const creds = (init?.credentials ?? req?.credentials) === 'include';
       const bodyText = typeof init?.body === 'string' ? init.body : undefined;
       const ct = res.headers.get('content-type') ?? '';
-      if (/json/i.test(ct)) res.clone().text().then((t) => report(method, url, res.status, headers, creds, bodyText, t, ct), () => undefined);
+      const size = Number(res.headers.get('content-length') ?? 0);
+      if (isJsonType(ct) && size <= MAX_REPLY_CHARS && isKarbonApi(new URL(url, location.href))) res.clone().text().then((t) => report(method, url, res.status, headers, creds, bodyText, t, ct), () => undefined);
       else report(method, url, res.status, headers, creds, bodyText, undefined, ct);
     } catch {
       // Observation must never affect Karbon.
@@ -71,12 +77,12 @@ function install() {
     const m = meta.get(this);
     if (m) {
       this.addEventListener('loadend', () => {
-        let text: string | undefined;
+        let reply: string | object | undefined;
         try {
-          text = this.responseType === '' || this.responseType === 'text' ? this.responseText : this.responseType === 'json' ? JSON.stringify(this.response) : undefined;
+          reply = this.responseType === '' || this.responseType === 'text' ? this.responseText : this.responseType === 'json' ? (this.response as object) : undefined;
         } catch { /* unreadable */ }
-        report(m.method, m.url, this.status, m.headers, this.withCredentials, typeof body === 'string' ? body : undefined, text, this.getResponseHeader('content-type') ?? '');
-      });
+        report(m.method, m.url, this.status, m.headers, this.withCredentials, typeof body === 'string' ? body : undefined, reply, this.getResponseHeader('content-type') ?? '');
+      }, { once: true });
     }
     return send.call(this, body);
   };
