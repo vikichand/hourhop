@@ -1,6 +1,6 @@
-// Integration capability model (T-104). Phase A ships only two local providers. There is deliberately
-// no Karbon provider: Karbon's public API documents no per-user auth and no time-entry write.
-// `karbon-approved` gets added only after Phase B/C approval; nothing here makes network requests.
+// Integration capability model. Sample and Local never touch the network. Karbon reads the user's assigned
+// work through Karbon's official API v3 with the firm's own keys (src/integrations/karbon.ts); it never
+// writes, because the API has no endpoint for creating time entries.
 
 import type { ProfileId } from '../domain/types';
 
@@ -11,7 +11,8 @@ export interface ProviderInfo {
   /** Source label for "recorded" budget actuals. Never "Karbon" for synthetic or manual data. */
   recordedLabel: string;
   canEditCatalog: boolean;
-  readsKarbon: false;
+  readsKarbon: boolean;
+  /** Always false: Karbon's API has no way to create time entries (see docs/roadmap.md). */
   submitsToKarbon: false;
 }
 
@@ -32,6 +33,15 @@ export const PROVIDERS: Record<ProfileId, ProviderInfo> = {
     recordedLabel: 'Recorded',
     canEditCatalog: true,
     readsKarbon: false,
+    submitsToKarbon: false,
+  },
+  karbon: {
+    id: 'karbon',
+    label: 'Karbon',
+    description: 'Your assigned work, synced read-only from Karbon. Time is saved on this device; enter it in Karbon with Copy for Karbon.',
+    recordedLabel: 'Karbon recorded',
+    canEditCatalog: false,
+    readsKarbon: true,
     submitsToKarbon: false,
   },
 };

@@ -2,7 +2,7 @@
 
 **Version:** 2.0
 **Updated:** 2026-11-19
-**Status:** Implemented in 0.2.0. Owner-approved "control room" direction, replacing the 1.x restrained-utility rules.
+**Status:** Implemented in 0.2.0; Karbon mode added in 0.3.0. Owner-approved "control room" direction, replacing the 1.x restrained-utility rules.
 **Scope:** Side panel, toolbar popup, review, settings, first run and every state of the Chrome extension.
 
 KWS-nnn labels refer to the project's private requirement list.
@@ -35,7 +35,7 @@ Copied logos, brand names, photos, rewards content, clipped corners and the refe
 3. **Warnings never look live.** Near budget is amber, over budget is red (the dial arc turns red too). Neither uses violet.
 4. **Numbers are the hero.** Time uses thin (200 weight) tabular numerals; labels are smaller, semibold sentence case. No all-caps eyebrows.
 5. **No fake data.** The dial arc appears only for a real positive time budget. Amount budgets, missing or unavailable budgets, and zero budgets show ticks and a text summary, never an invented percentage. The week chart uses only recorded local sessions.
-6. **Honest status, always in words.** "Saved on this device, not sent to Karbon", "Not sent to Karbon", "Confirmed in Karbon: Not connected". Status uses text plus a dot, never colour alone.
+6. **Honest status, always in words.** "Saved on this device, not sent to Karbon", "Synced from Karbon at ...", "Not sent to Karbon", "Confirmed in Karbon: Not connected" or "Not sent automatically". Status uses text plus a dot, never colour alone.
 7. **No ambient motion.** Glows are static. Transitions are 120 to 180 ms on hover and state changes only, and are removed under reduced motion.
 
 ## 3. Tokens
@@ -75,7 +75,9 @@ Copied logos, brand names, photos, rewards content, clipped corners and the refe
 
 **Review (full tab):** round nav rail; title, date, mode pill and both exports; the "local time only" notice; a totals card (big thin total, sessions, need review, Confirmed in Karbon: Not connected) with the week's day strip; Hours this week with today's bar lit; Sessions grouped by work item with intervals, notes, tags, Copy for Karbon and Edit.
 
-**Settings (full tab):** rail; glass cards for Appearance, Data mode, Karbon connection (status text, no fake switch), Your data (exports, delete with typed confirmation) and About.
+**Settings (full tab):** rail; glass cards for Appearance, Data mode (Karbon, Local only, Sample data), Karbon connection, Your data (exports, delete with typed confirmation) and About. The Karbon card shows the three connect fields (keys as password fields) with a plain warning that the keys are firm-wide; once connected it shows who you are connected as, when it last synced, the last refresh error if any, Refresh now and Disconnect. Saved keys are never shown back.
+
+**Karbon mode:** the mode pill reads "Karbon"; a quiet line under the header says "Synced from Karbon at HH:MM. Read-only." with a round Refresh button; a failed refresh shows an amber banner and keeps the last good work list. Review never claims confirmation: the totals say "Confirmed in Karbon: Not sent automatically", and each session has a **Mark entered** toggle whose tag reads "Entered in Karbon (marked by you)".
 
 **First run:** ring, "Switch work. Track time.", two tiles (Track locally, Try sample data) with play buttons, and the plain statement that nothing connects to Karbon.
 

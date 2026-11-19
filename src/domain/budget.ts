@@ -87,6 +87,7 @@ function lineView(line: BudgetLine, localMinutes: number, recordedLabel: string)
  */
 export function budgetView(info: BudgetInfo, localMinutes: number, recordedLabel: string): BudgetView {
   if (info.kind === 'unavailable') {
+    if (info.reason === 'not-loaded') return { state: 'unavailable', summary: 'Budget not loaded yet', lines: [] };
     const why = { 'not-connected': 'not connected to Karbon', denied: 'you do not have access', error: 'could not be loaded' }[info.reason];
     return { state: 'unavailable', summary: `Budget unavailable: ${why}`, lines: [] };
   }

@@ -30,7 +30,8 @@ function useActiveBudget(app: AppApi, s: LocalSession): BudgetView {
   const work = activeWork(app, s);
   const info: BudgetInfo = work?.budget ?? { kind: 'unavailable', reason: 'not-connected' };
   const localMs = (app.snap?.activeTargetSessions ?? [])
-    .filter((x) => x.submissionStatus === 'local-only')
+    // Sessions the user marked as entered in Karbon are already inside Karbon's recorded minutes.
+    .filter((x) => x.submissionStatus === 'local-only' && !x.enteredInKarbonAtUtc)
     .reduce((t, x) => t + elapsedMs(x.id === s.id ? s : x, now), 0);
   return budgetView(info, Math.floor(localMs / 60_000), PROVIDERS[s.profileId].recordedLabel);
 }

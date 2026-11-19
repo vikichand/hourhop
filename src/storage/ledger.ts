@@ -33,6 +33,37 @@ export interface AuditRecord {
   after: LocalSession[];
 }
 
+/** Stored Karbon connection. Holds the firm's keys: read only by src/integrations/karbon-sync.ts. */
+export interface KarbonConn {
+  key: 'karbon:conn';
+  appId: string;
+  accessKey: string;
+  email: string;
+  tenantKey: string;
+  userKey: string;
+  userName: string;
+  connectedUtc: string;
+  lastSyncUtc: string | null;
+  /** Single-flight marker shared by every open surface, so only one sync hits Karbon's rate limit at a time. */
+  syncStartedUtc: string | null;
+  lastError: string | null;
+  workCount: number;
+}
+
+/** What the UI may see about the connection. Never includes the keys. */
+export interface KarbonStatus {
+  connected: boolean;
+  email?: string;
+  userName?: string;
+  lastSyncUtc?: string | null;
+  lastError?: string | null;
+  workCount?: number;
+  /** Sessions recorded in Karbon mode exist, even if currently disconnected. */
+  hasSessions: boolean;
+}
+
+const SYNC_LOCK_MS = 2 * 60_000;
+
 export type Command =
   | { opId: string; type: 'start'; input: NewSessionInput }
   | { opId: string; type: 'pause'; sessionId: string }
@@ -219,6 +250,107 @@ export class Ledger {
     });
   }
 
+  // ---------- Karbon connection and synced catalog ----------
+
+  async karbonConn(): Promise<KarbonConn | undefined> {
+    return this.tx(['state'], 'readonly', async (t) => (await req(t.objectStore('state').get('karbon:conn'))) as KarbonConn | undefined);
+  }
+
+  async karbonStatus(): Promise<KarbonStatus> {
+    return this.tx(['state', 'sessions'], 'readonly', async (t) => {
+      const c = (await req(t.objectStore('state').get('karbon:conn'))) as KarbonConn | undefined;
+      const n = await req(t.objectStore('sessions').index('byProfileStart').count(IDBKeyRange.bound(['karbon', ''], ['karbon', '\uffff'])));
+      return c
+        ? { connected: true, email: c.email, userName: c.userName, lastSyncUtc: c.lastSyncUtc, lastError: c.lastError, workCount: c.workCount, hasSessions: n > 0 }
+        : { connected: false, hasSessions: n > 0 };
+    });
+  }
+
+  /** The firm (Karbon tenant) whose data is held locally; survives disconnect so another firm can't mix in. */
+  async karbonTenant(): Promise<string | undefined> {
+    return this.tx(['state'], 'readonly', async (t) => ((await req(t.objectStore('state').get('karbon:tenant'))) as { tenantKey: string } | undefined)?.tenantKey);
+  }
+
+  async saveKarbonConn(conn: KarbonConn) {
+    await this.tx(['state'], 'readwrite', async (t) => {
+      const st = t.objectStore('state');
+      st.put(conn);
+      st.put({ key: 'karbon:tenant', tenantKey: conn.tenantKey });
+      const s = await this.readState(t);
+      st.put({ ...s, revision: s.revision + 1 });
+    });
+  }
+
+  async patchKarbonConn(patch: Partial<Pick<KarbonConn, 'lastSyncUtc' | 'syncStartedUtc' | 'lastError' | 'workCount'>>) {
+    await this.tx(['state'], 'readwrite', async (t) => {
+      const st = t.objectStore('state');
+      const c = (await req(st.get('karbon:conn'))) as KarbonConn | undefined;
+      if (!c) return;
+      st.put({ ...c, ...patch });
+      const s = await this.readState(t);
+      st.put({ ...s, revision: s.revision + 1 });
+    });
+  }
+
+  /** Atomically claims the sync slot unless another surface started one within the lock window. */
+  async claimKarbonSync(nowMs: number): Promise<boolean> {
+    return this.tx(['state'], 'readwrite', async (t) => {
+      const st = t.objectStore('state');
+      const c = (await req(st.get('karbon:conn'))) as KarbonConn | undefined;
+      if (!c) return false;
+      if (c.syncStartedUtc && nowMs - Date.parse(c.syncStartedUtc) < SYNC_LOCK_MS) return false;
+      st.put({ ...c, syncStartedUtc: new Date(nowMs).toISOString() });
+      return true;
+    });
+  }
+
+  /** Removes the keys. Local sessions stay; the synced catalog is cleared. Refused while a Karbon timer runs. */
+  async disconnectKarbon() {
+    await this.tx(['state', 'clients', 'work', 'sessions'], 'readwrite', async (t) => {
+      const s = await this.readState(t);
+      if (s.activeSessionId) {
+        const a = (await req(t.objectStore('sessions').get(s.activeSessionId))) as LocalSession | undefined;
+        if (a?.profileId === 'karbon') throw new DomainError('CONFLICT', 'Stop the running Karbon timer before disconnecting.');
+      }
+      t.objectStore('state').delete('karbon:conn');
+      await this.clearCatalog(t, 'karbon');
+      t.objectStore('state').put({ ...s, revision: s.revision + 1 });
+    });
+  }
+
+  private async clearCatalog(t: IDBTransaction, profile: ProfileId) {
+    for (const name of ['clients', 'work'] as const) {
+      const keys = await req(t.objectStore(name).index('byProfile').getAllKeys(profile));
+      for (const k of keys) t.objectStore(name).delete(k);
+    }
+  }
+
+  /** Replaces a profile's whole catalog in one transaction; budgets already loaded for kept items are preserved. */
+  async replaceCatalog(profile: ProfileId, clients: Client[], work: WorkItem[], opts: { requireKarbonConn?: boolean } = {}): Promise<boolean> {
+    return this.tx(['clients', 'work', 'state'], 'readwrite', async (t) => {
+      // A refresh that outlives a disconnect must not bring the firm's work list back.
+      if (opts.requireKarbonConn && !(await req(t.objectStore('state').get('karbon:conn')))) return false;
+      const old = (await req(t.objectStore('work').index('byProfile').getAll(profile))) as WorkItem[];
+      const budgets = new Map(old.map((w) => [w.key, w.budget]));
+      await this.clearCatalog(t, profile);
+      for (const c of clients) t.objectStore('clients').put(c);
+      for (const w of work) t.objectStore('work').put({ ...w, budget: w.budget.kind === 'unavailable' && w.budget.reason === 'not-loaded' ? budgets.get(w.key) ?? w.budget : w.budget });
+      const s = await this.readState(t);
+      t.objectStore('state').put({ ...s, revision: s.revision + 1 });
+      return true;
+    });
+  }
+
+  async setWorkBudget(profile: ProfileId, key: string, budget: WorkItem['budget']) {
+    await this.tx(['work', 'state'], 'readwrite', async (t) => {
+      const w = (await req(t.objectStore('work').get([profile, key]))) as WorkItem | undefined;
+      if (!w) return;
+      t.objectStore('work').put({ ...w, budget });
+      const s = await this.readState(t);
+      t.objectStore('state').put({ ...s, revision: s.revision + 1 });
+    });
+  }
+
   // ---------- reads ----------
 
   async session(id: string): Promise<LocalSession | undefined> {
@@ -270,7 +402,7 @@ export class Ledger {
   // ---------- session details and audited corrections ----------
 
   /** Notes and metadata are user text, not time; they may be edited on any unconfirmed session, including the active one. */
-  async updateDetails(id: string, patch: Partial<Pick<LocalSession, 'userNote' | 'roleName' | 'taskTypeName' | 'billableIntent'>>) {
+  async updateDetails(id: string, patch: Partial<Pick<LocalSession, 'userNote' | 'roleName' | 'taskTypeName' | 'billableIntent' | 'enteredInKarbonAtUtc'>>) {
     await this.tx(['sessions', 'state'], 'readwrite', async (t) => {
       const s = (await req(t.objectStore('sessions').get(id))) as LocalSession | undefined;
       if (!s) throw new DomainError('CONFLICT', 'That session no longer exists.');

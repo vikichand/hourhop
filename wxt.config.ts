@@ -1,8 +1,8 @@
 import { defineConfig } from 'wxt';
 import { APP } from './src/app-meta';
 
-// Phase A: no host permissions, no content scripts, no background worker.
-// The ledger lives in IndexedDB, which needs no permission; `sidePanel` is the only one.
+// No content scripts, no background worker. The ledger lives in IndexedDB (no permission needed).
+// `sidePanel` plus one host, Karbon's official API, used only after the user connects their firm's keys.
 export default defineConfig({
   srcDir: 'src',
   manifest: {
@@ -12,9 +12,11 @@ export default defineConfig({
     version: APP.version,
     minimum_chrome_version: '123',
     permissions: ['sidePanel'],
+    // Karbon's official API only. Nothing is requested until the user enters their firm's keys.
+    host_permissions: ['https://api.karbonhq.com/*'],
     action: { default_title: APP.brand },
     content_security_policy: {
-      extension_pages: "script-src 'self'; object-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+      extension_pages: "script-src 'self'; object-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; connect-src 'self' https://api.karbonhq.com",
     },
   },
   vite: () => ({

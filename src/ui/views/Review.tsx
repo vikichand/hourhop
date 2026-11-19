@@ -95,7 +95,8 @@ export function Review() {
                   <div class="row wrap" style={{ gap: 'var(--space-5)' }}>
                     <div class="total"><span class="xs muted">Sessions</span><p class="num">{sessions?.length ?? 0}</p></div>
                     <div class="total"><span class="xs muted">Need review</span><p class={`num${review ? ' warn' : ''}`}>{review}</p></div>
-                    <div class="total"><span class="xs muted">Confirmed in Karbon</span><p>Not connected</p></div>
+                    <div class="total"><span class="xs muted">Confirmed in Karbon</span><p>{s.state.profile === 'karbon' ? 'Not sent automatically' : 'Not connected'}</p></div>
+                    <div class="total"><span class="xs muted">Marked as entered</span><p class="num">{(sessions ?? []).filter((x) => x.enteredInKarbonAtUtc).length}</p></div>
                   </div>
                   <div class="days-strip" role="group" aria-label="This week">
                     {days.map((d) => (
@@ -168,7 +169,7 @@ function SessionRow({ app, session: x, now, onEdit, onCopied }: { app: AppApi; s
           {x.status === 'running' && <StatusText kind="running">Running</StatusText>}
           {x.status === 'paused' && <StatusText kind="paused">Paused</StatusText>}
           {x.status === 'needs-review' && <StatusText kind="review">Needs review: {reasons}</StatusText>}
-          <StatusText kind="local">Local only</StatusText>
+          {x.enteredInKarbonAtUtc ? <StatusText kind="sample">Entered in Karbon (marked by you)</StatusText> : <StatusText kind="local">Local only</StatusText>}
           {x.billableIntent !== 'unknown' && <span class="xs muted">{x.billableIntent === 'billable' ? 'Billable' : 'Non-billable'}</span>}
           {x.roleName && <span class="xs muted">Role: {x.roleName}</span>}
           {x.taskTypeName && <span class="xs muted">Task type: {x.taskTypeName}</span>}
@@ -177,11 +178,16 @@ function SessionRow({ app, session: x, now, onEdit, onCopied }: { app: AppApi; s
         {x.userNote && <p class="note">{x.userNote}</p>}
       </div>
       <strong class="num">{short(elapsedMs(x, now))}</strong>
-      <div class="row">
+      <div class="row wrap">
         <Button size="sm" variant="quiet" onClick={async () => {
-          try { await navigator.clipboard.writeText(copyText(x)); onCopied('Copied. Paste it into Karbon\'s time entry form.'); }
+          try { await navigator.clipboard.writeText(copyText(x)); onCopied('Copied. Paste it into Karbon\'s time entry form, then press Mark entered so it is not counted twice.'); }
           catch { app.setError('Copy failed. Your browser blocked clipboard access.'); }
         }} aria-label={`Copy for Karbon: ${x.label.work}`}><Icon name="copy" />Copy for Karbon</Button>
+        <Button size="sm" variant="quiet" aria-pressed={!!x.enteredInKarbonAtUtc}
+          aria-label={x.enteredInKarbonAtUtc ? `Unmark as entered in Karbon: ${x.label.work}` : `Mark as entered in Karbon: ${x.label.work}`}
+          onClick={() => app.act(`entered-${x.id}`, (l) => l.updateDetails(x.id, { enteredInKarbonAtUtc: x.enteredInKarbonAtUtc ? undefined : new Date().toISOString() }))}>
+          <Icon name="check" />{x.enteredInKarbonAtUtc ? 'Entered' : 'Mark entered'}
+        </Button>
         <Button size="sm" variant="secondary" inert={isActive} onClick={onEdit}
           aria-label={isActive ? 'Stop the timer to edit this session' : `Edit session: ${x.label.work}`}>Edit</Button>
       </div>

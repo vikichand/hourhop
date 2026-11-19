@@ -4,7 +4,9 @@
 
 Switch work. Track time. A Chrome extension that keeps one timer running across your client work, so you can hop between clients and work items in one click and review every interval at the end of the day.
 
-HourHop is an independent tool. It is not affiliated with, endorsed by or connected to Karbon or any other practice-management product. It does not read or write Karbon data; you enter the time you capture into Karbon yourself.
+With your firm's Karbon keys, HourHop pulls in the work assigned to you, with each job's real budget, straight from Karbon's official API. Press play on a job to time it, hop to the next one in a tap, and review the day when you're done. Without keys it works on its own with clients you add yourself.
+
+HourHop is an independent tool. It is not affiliated with or endorsed by Karbon. It only ever reads from Karbon: Karbon's API has no way for other apps to create time entries, so you still enter the time in Karbon, helped by **Copy for Karbon**.
 
 ## Install
 
@@ -12,18 +14,39 @@ HourHop is an independent tool. It is not affiliated with, endorsed by or connec
 2. Open `chrome://extensions` and switch on **Developer mode** (top right).
 3. Click **Load unpacked** and choose the unzipped folder.
 4. Pin HourHop from the puzzle-piece menu, click its icon, then **Open work switcher**.
-5. Choose **Track locally** to add your own clients, or **Try sample data** to explore with made-up ones.
+5. Choose **Connect Karbon** (below), **Track locally** to add your own clients, or **Try sample data** to explore with made-up ones.
 
 Requires Chrome 123 or newer. If your organization manages Chrome, Developer mode may be disabled; ask your IT team. To update, download the new zip, replace the folder contents and click the reload icon on the HourHop card in `chrome://extensions`. Your data is kept across updates.
 
-## Using it with Karbon
+## Connect Karbon
 
-1. Add each client and work item once with **Add work** (Track locally mode).
-2. Press play on what you're working on. Pressing play on another item switches the timer in one step; pause, resume and stop are on the timer card.
-3. Add a plain-text note to the running session if you like.
-4. At the end of the day, click **Review time**, check the sessions, correct anything with **Edit** (a reason is required and kept in the edit history), then use **Copy for Karbon** and paste into Karbon's time entry form.
+Karbon has no "sign in with Karbon" for other apps, so HourHop uses the same two keys any Karbon API integration uses. Your firm's Karbon admin sets this up once:
 
-Karbon's own timer is separate, so don't run both for the same work. **Export all as CSV/JSON** in Review or Settings gives you a backup.
+1. Register a developer account at [developers.karbonhq.com/register](https://developers.karbonhq.com/register) and ask Karbon to enable API v3 for the firm (Karbon turns it on by request). Karbon sends an **Application ID** for the registered application.
+2. In Karbon, go to **Settings**, then **Connected Apps**, then **API Applications**, open the application and copy its **AccessKey**.
+3. Share the Application ID and AccessKey with the colleagues who will use HourHop, the way your firm shares other credentials.
+
+Each colleague then opens HourHop **Settings**, enters the Application ID, the AccessKey and the email they sign in to Karbon with, and clicks **Connect Karbon**. HourHop checks the keys, finds their Karbon user and switches to Karbon mode.
+
+What happens next:
+
+- The work items assigned to you that aren't completed appear in the side panel, grouped by client, with Karbon's statuses and due dates. They refresh automatically every 15 minutes while HourHop is open, or straight away with **Refresh**.
+- Budgets come from each work item's Karbon estimates: the work item total and your own allocation, with time already recorded in Karbon. Hourly rates are never shown. Time you have tracked in HourHop but not yet entered in Karbon shows separately; it is never added to Karbon's figures.
+- After you paste a session into Karbon, press **Mark entered** in Review so it no longer counts as unentered time.
+
+Please know before connecting:
+
+- **The keys can read the whole firm's Karbon data.** HourHop only asks Karbon for your assigned work and only shows you that, but the keys themselves are not limited to you. Treat them like a password. They are stored only in this browser profile, are sent only to `https://api.karbonhq.com`, are never shown again after saving, and are removed by **Disconnect** or **Delete all data**.
+- **HourHop never writes to Karbon.** Every request is a read (`GET`), enforced by tests on the shipped build.
+- **Not yet verified against a live Karbon account.** The integration is built and tested against Karbon's published API specification ([karbonhq/karbon-api-reference](https://github.com/karbonhq/karbon-api-reference), October 2026) with a simulated Karbon. If connecting fails, the message says why (rejected keys, API access not enabled, email not found, network); please open an issue with that message.
+
+## Using it day to day
+
+1. Press play on what you're working on. Pressing play on another item switches the timer in one step; pause, resume and stop are on the timer card.
+2. Add a plain-text note to the running session if you like.
+3. At the end of the day, click **Review time**, check the sessions, correct anything with **Edit** (a reason is required and kept in the edit history), then use **Copy for Karbon**, paste into Karbon's time entry form and press **Mark entered**.
+
+Without Karbon keys, add each client and work item once with **Add work** (Track locally mode) instead. Karbon's own timer is separate, so don't run both for the same work. **Export all as CSV/JSON** in Review or Settings gives you a backup.
 
 ## What it does
 
@@ -52,7 +75,7 @@ All screenshots are from the real extension with made-up sample data.
 
 ## Privacy
 
-Everything stays in your browser profile (IndexedDB). HourHop makes no network requests, has no analytics and asks for one permission, `sidePanel`. Uninstalling the extension or clearing site data deletes your data, so export first.
+Everything stays in your browser profile (IndexedDB). There are no analytics. HourHop asks for the `sidePanel` permission and access to one site, Karbon's API at `api.karbonhq.com`; it makes no network request at all until you enter Karbon keys, and then only reads from that API. Uninstalling the extension or clearing site data deletes your data, so export first.
 
 ## Build from source
 
@@ -79,15 +102,17 @@ E2E tests use Playwright's bundled Chromium by default, a throwaway profile per 
 ## How it works
 
 - `src/domain/`: pure TypeScript for timer transitions, durations and local-date attribution, budgets, audited edits and export.
+- `src/integrations/karbon.ts` and `karbon-sync.ts`: the read-only Karbon client and sync. The client is the only code allowed to make network requests; it sends `GET` requests to `https://api.karbonhq.com` only, follows pagination links only on that origin, retries rate limits a bounded number of times, and never puts the keys in errors or logs. A failed refresh keeps the last good work list.
 - `src/storage/ledger.ts`: the IndexedDB ledger. Every timer command is one readwrite transaction over the global active pointer, the session records and an operation journal, so commands from the popup and side panel serialize in IndexedDB itself. Success is shown only after the transaction commits.
 - `src/ui/`: Preact. `tokens.css` holds every colour, size and timing value; `components.tsx` is the only module that renders raw controls; `parts.tsx` and `views/` compose them. `tests/ui-guards.test.ts` enforces both rules.
-- No background service worker, content script or host permission. Elapsed time is derived from stored timestamps, so closing every window or restarting the browser loses nothing.
+- No background service worker or content script, and no host access beyond Karbon's API. Elapsed time is derived from stored timestamps, so closing every window or restarting the browser loses nothing.
 
 Design rules are in [docs/design.md](docs/design.md).
 
 ## Limits
 
-- No Karbon sign-in, client sync or automatic time submission. Karbon's public API documents no per-user sign-in and no way to create time entries, so this would need Karbon's approval.
+- Time is not saved into Karbon automatically. Karbon's API can read time entries but not create them; see the [roadmap](docs/roadmap.md).
+- Connecting needs firm-wide Karbon API keys, because Karbon offers no per-user sign-in for other apps.
 - Data lives in one browser profile; there is no sync between devices.
 - Layout is designed for 320 to 600 CSS px wide. At 200% zoom in a narrow side panel it overflows sideways.
 

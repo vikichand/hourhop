@@ -15,5 +15,5 @@ export async function downloadExport(profile: ProfileId, format: 'csv' | 'json')
   a.download = `hourhop-${profile}-${nowIso.slice(0, 10)}.${format}`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
-  return `Exported ${sessions.length} ${sessions.length === 1 ? 'session' : 'sessions'} from ${profile === 'sample' ? 'sample data' : 'local data'} as ${format.toUpperCase()}.`;
+  return `Exported ${sessions.length} ${sessions.length === 1 ? 'session' : 'sessions'} from ${{ sample: 'sample data', local: 'local data', karbon: 'Karbon mode' }[profile]} as ${format.toUpperCase()}.`;
 }

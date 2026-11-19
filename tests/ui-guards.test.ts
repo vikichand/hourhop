@@ -47,11 +47,27 @@ describe('one shared component system', () => {
 });
 
 describe('Phase A scope [KWS-035, KWS-017]', () => {
-  it('ships no microphone, speech, AI, network or Karbon-session code', () => {
+  it('ships no microphone, speech, AI, cookie or Karbon-session code; only the Karbon client may use the network', () => {
     for (const { f, text } of src.filter(({ f }) => /\.(tsx?|html)$/.test(f))) {
-      const c = code(text).replace(/@media[^{]*/g, ''); // breakpoints cannot use var()
-      expect(c, f).not.toMatch(/getUserMedia|SpeechRecognition|webkitSpeech|MediaRecorder|LanguageModel|\bfetch\(|XMLHttpRequest|WebSocket|sendBeacon|document\.cookie|chrome\.cookies|innerHTML|dangerouslySetInnerHTML/);
+      const c = code(text);
+      expect(c, f).not.toMatch(/getUserMedia|SpeechRecognition|webkitSpeech|MediaRecorder|LanguageModel|XMLHttpRequest|WebSocket|sendBeacon|document\.cookie|chrome\.cookies|innerHTML|dangerouslySetInnerHTML/);
+      if (!f.endsWith('src/integrations/karbon.ts')) expect(c, f).not.toMatch(/\bfetch\(/);
     }
+  });
+
+  it('only the Karbon sync module reads the stored keys', () => {
+    for (const { f, text } of src.filter(({ f }) => /\.tsx?$/.test(f) && !/src\/(integrations\/karbon-sync|storage\/ledger)\.ts$/.test(f))) {
+      expect(code(text), f).not.toMatch(/karbonConn\(/);
+    }
+  });
+
+  it('the Karbon client is read-only and pinned to Karbon\'s official API origin', () => {
+    // Comment lines dropped by hand: code() would also cut the `//` inside https:// string literals.
+    const k = src.find(({ f }) => f.endsWith('src/integrations/karbon.ts'))!.text.split(/\r?\n/).filter((l) => !/^\s*\/\//.test(l)).join('\n');
+    expect(k).toContain("export const KARBON_ORIGIN = 'https://api.karbonhq.com';");
+    expect(k).toMatch(/method: 'GET'/);
+    expect(k).not.toMatch(/method: '(POST|PUT|PATCH|DELETE)'/);
+    expect(k.match(/https?:\/\/[^'"`\s]+/g)).toEqual(['https://api.karbonhq.com']);
   });
 
   it('never marks anything confirmed in Karbon: no code path sets confirmed status or an official entry id', () => {

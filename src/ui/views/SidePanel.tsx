@@ -8,6 +8,7 @@ import { openReview, openSettings, useApp, useNow, type AppApi } from '../app-st
 import { AppHeader, Banner, Button, Dialog, EmptyState, FilterGroup, Icon, IconButton, PlayButton, Ring, SearchBox, Select, TextField } from '../components';
 import { ModeStatus, TrackingPanel, WeekCard, WorkRow, WorkTile } from '../parts';
 import { buildRows, matchesStatus, search, type Row, type StatusFilter } from '../rows';
+import { loadKarbonBudgets, refreshKarbon } from '../../integrations/karbon-sync';
 
 const PAGE = 50; // bounded DOM: at most PAGE items rendered until the user asks for more (KWS-029)
 
@@ -23,11 +24,54 @@ export function SidePanel() {
       {!s ? <p class="muted" role="status">Loading…</p>
         : !s.state.profile ? <Onboarding app={app} />
         : <>
+            {s.state.profile === 'karbon' && <KarbonBar app={app} />}
             <TrackingPanel app={app} />
             <Switcher app={app} />
             <WeekCard app={app} />
           </>}
     </div>
+  );
+}
+
+/** Sync status for Karbon mode, automatic refresh when stale, and lazy budgets for what is on screen. */
+function KarbonBar({ app }: { app: AppApi }) {
+  const s = app.snap!;
+  const k = s.karbon;
+  const [syncing, setSyncing] = useState(false);
+  const refresh = async (force: boolean) => {
+    const l = app.ledger;
+    if (!l) return;
+    setSyncing(true);
+    try {
+      await refreshKarbon(l, { force });
+    } catch {
+      // The reason is stored on the connection and shown below; the last good work list stays.
+    } finally {
+      setSyncing(false);
+    }
+  };
+  useEffect(() => { refresh(false); }, [app.ledger]);
+  // Budgets for the active item and the first visible recent and favorite items only.
+  const want = [
+    ...(s.active?.target.kind === 'work-item' && s.active.profileId === 'karbon' ? [s.active.target.workItemId] : []),
+    ...s.recents.slice(0, 8).map((key) => key.split(':').pop()!),
+    ...s.favorites.slice(0, 4).map((key) => key.split(':').pop()!),
+  ].join(',');
+  useEffect(() => {
+    if (app.ledger && want) loadKarbonBudgets(app.ledger, want.split(',')).catch(() => undefined);
+  }, [app.ledger, want]);
+  if (!k.connected) {
+    return <Banner tone="warning">Karbon is disconnected. Reconnect in Settings to refresh your work. Your recorded time is still here.</Banner>;
+  }
+  const at = k.lastSyncUtc ? new Date(k.lastSyncUtc).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : 'never';
+  return (
+    <>
+      <div class="row small muted">
+        <span class="grow" role="status">{syncing ? 'Refreshing from Karbon…' : `Synced from Karbon at ${at}. Read-only.`}</span>
+        <IconButton variant="plain" label="Refresh from Karbon" icon="refresh" onClick={() => refresh(true)} aria-busy={syncing || undefined} />
+      </div>
+      {k.lastError && <Banner tone="warning">Couldn't refresh from Karbon: {k.lastError} Showing your work as of {at}.</Banner>}
+    </>
   );
 }
 
@@ -52,14 +96,19 @@ export function Onboarding({ app }: { app: AppApi }) {
           <p class="work-title">Track locally</p><p class="xs muted">{PROVIDERS.local.description}</p>
         </li>
         <li class="glass tile">
+          <div class="tile-top"><span class="avatar" aria-hidden="true"><Icon name="hop" /></span>
+            <PlayButton label="Connect Karbon" live={false} onClick={() => openSettings()} /></div>
+          <p class="work-title">Connect Karbon</p><p class="xs muted">Pull in the work assigned to you, read-only. Needs your firm's Karbon API keys.</p>
+        </li>
+        <li class="glass tile">
           <div class="tile-top"><span class="avatar" aria-hidden="true"><Icon name="star" /></span>
             <PlayButton label="Try sample data" live={false} busy={app.busy === 'mode-sample'} onClick={() => choose('sample')} /></div>
           <p class="work-title">Try sample data</p><p class="xs muted">{PROVIDERS.sample.description}</p>
         </li>
       </ul>
       <p class="xs dim">
-        No account, no sign-in, no network access. Karbon connection isn't available in this version: {APP.brand} does not read or
-        write any Karbon data, and your time is stored only in this browser profile. {APP.nonAffiliation}
+        Your time is stored only in this browser profile. Without Karbon keys {APP.brand} makes no network requests; with them it
+        only reads your assigned work from Karbon's official API and never writes to Karbon. {APP.nonAffiliation}
       </p>
     </section>
   );
@@ -162,6 +211,9 @@ function Switcher({ app }: { app: AppApi }) {
           {searching ? <EmptyState title="No matches">Try a client name or part of a work title.</EmptyState>
           : effectiveTab === 'recent' ? <EmptyState title="No recent work yet" action={<Button size="sm" onClick={() => setTab('all')}>Browse all work</Button>}>Work you track appears here.</EmptyState>
           : effectiveTab === 'favorites' ? <EmptyState title="No favorites yet">Use the star on any work item to pin it here.</EmptyState>
+          : profile === 'karbon' && !rows.length ? <EmptyState title="No open work assigned to you in Karbon">
+              {s.karbon.email ? `Karbon has no open work items assigned to ${s.karbon.email}.` : ''} Use Refresh after work is assigned to you.
+            </EmptyState>
           : <EmptyState title="No work items yet" action={PROVIDERS[profile].canEditCatalog && <Button size="sm" variant="primary" onClick={() => setAdding(true)}>Add work item</Button>}>
               {PROVIDERS[profile].canEditCatalog ? 'Add the clients and work items you track time against.' : 'Nothing matches this status filter.'}
             </EmptyState>}

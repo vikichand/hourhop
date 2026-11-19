@@ -10,7 +10,8 @@ import { currentTimeZone, localDate } from '../domain/time';
 import type { Client, LocalSession, ProfileId, Target, WorkItem } from '../domain/types';
 import { latestOnly } from './latest';
 import { weekDates } from './week';
-import { openLedger, StorageError, type GlobalState, type Ledger, type Theme } from '../storage/ledger';
+import { openLedger, StorageError, type GlobalState, type KarbonStatus, type Ledger, type Theme } from '../storage/ledger';
+import { KarbonError } from '../integrations/karbon';
 
 let ledgerPromise: Promise<Ledger> | null = null;
 export function getLedger(): Promise<Ledger> {
@@ -34,18 +35,20 @@ export interface Snapshot {
   week: LocalSession[];
   /** All sessions of the active target, for local-unsubmitted budget totals. */
   activeTargetSessions: LocalSession[];
+  /** Karbon connection status (never the keys). */
+  karbon: KarbonStatus;
 }
 
 export function errorMessage(e: unknown): string {
   if (e instanceof StorageError) return `Not saved. ${APP.brand} could not write to local storage, so your last action was not recorded. (${e.message})`;
-  if (e instanceof DomainError) return e.message;
+  if (e instanceof DomainError || e instanceof KarbonError) return e.message;
   return `Something went wrong: ${(e as Error)?.message ?? String(e)}`;
 }
 
 async function load(l: Ledger): Promise<Snapshot> {
-  const { state, active } = await l.active();
+  const [{ state, active }, karbon] = await Promise.all([l.active(), l.karbonStatus()]);
   const profile = state.profile;
-  if (!profile) return { state, active, clients: new Map(), work: [], favorites: [], recents: [], today: [], week: [], activeTargetSessions: [] };
+  if (!profile) return { state, active, karbon, clients: new Map(), work: [], favorites: [], recents: [], today: [], week: [], activeTargetSessions: [] };
   const today = localDate(Date.now(), currentTimeZone());
   const monday = weekDates(Date.now())[0]!;
   const [cat, favorites, recents, todays, activeTargetSessions] = await Promise.all([
@@ -53,7 +56,7 @@ async function load(l: Ledger): Promise<Snapshot> {
     active ? l.sessionsForTarget(active.targetKey) : Promise.resolve([]),
   ]);
   return {
-    state, active, favorites, recents, today: todays.filter((x) => x.dateLocal === today), week: todays, activeTargetSessions,
+    state, active, karbon, favorites, recents, today: todays.filter((x) => x.dateLocal === today), week: todays, activeTargetSessions,
     clients: new Map(cat.clients.map((c) => [c.key, c])), work: cat.work,
   };
 }

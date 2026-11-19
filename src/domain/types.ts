@@ -5,8 +5,11 @@ export type WorkStatus = 'Planned' | 'Ready To Start' | 'In Progress' | 'Waiting
 export const WORK_STATUSES: WorkStatus[] = ['Ready To Start', 'In Progress', 'Waiting', 'Planned', 'Completed'];
 export const ACTIONABLE: WorkStatus[] = ['Ready To Start', 'In Progress'];
 
-/** Data namespace. `sample` is synthetic demo data, `local` is the user's own manual catalog. */
-export type ProfileId = 'sample' | 'local';
+/**
+ * Data namespace. `sample` is synthetic demo data, `local` is the user's own manual catalog, `karbon` is the
+ * user's assigned work synced read-only from their firm's Karbon account.
+ */
+export type ProfileId = 'sample' | 'local' | 'karbon';
 
 export type Target =
   | { kind: 'work-item'; tenantId: ProfileId; clientKind: ClientKind; clientId: string; workItemId: string }
@@ -31,7 +34,7 @@ export type BudgetLine =
   | { kind: 'amount'; scope: BudgetScope; estimateAmount: number; currency?: string; recordedAmount?: number };
 
 export type BudgetInfo =
-  | { kind: 'unavailable'; reason: 'not-connected' | 'denied' | 'error' }
+  | { kind: 'unavailable'; reason: 'not-connected' | 'denied' | 'error' | 'not-loaded' }
   | { kind: 'none'; asOfUtc: string }
   | { kind: 'set'; lines: BudgetLine[]; asOfUtc: string };
 
@@ -79,4 +82,9 @@ export interface LocalSession {
   lastEditedAtUtc: string;
   version: number;
   officialEntryId?: string; // only ever set by an approved integration; never in Phase A
+  /**
+   * The user says they typed this session into Karbon themselves. Not a confirmation: HourHop cannot see
+   * individual entries. It only stops the session counting as local unsubmitted time against the budget.
+   */
+  enteredInKarbonAtUtc?: string;
 }
