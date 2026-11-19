@@ -89,7 +89,7 @@ Every surface uses the shared components in `src/ui/components.tsx` (Button, Ico
 - Every icon-only control has an accessible name ("Pause: Alder & Finch Joinery Ltd, VAT return Q3"); round controls also show a visible label.
 - Visible focus rings on everything; focus stays on a tile's button through a switch; dialogs return focus to their opener.
 - Forced colours keep every boundary and the live state visible.
-- Layout works from 320 to 600 CSS px in the panel, and at 150% and 200% browser zoom down to 240 CSS px. The full-tab pages reflow to one column, and the rail turns horizontal, below 640 px.
+- Layout works from 320 to 600 CSS px in the panel, and at 150% and 200% browser zoom down to 240 CSS px. The full-tab pages reflow to one column, and the rail turns horizontal, below 640 px. Components that sit in cards of varying width size themselves to their card (container queries), never the window: Review's day strip stacks hours over minutes when one-line durations would not fit, and drops to four columns in a very narrow card. No text or control may spill out of its own box at any supported width; `e2e/ui-quality.spec.ts` checks every surface for it.
 
 ## 6. Verification
 

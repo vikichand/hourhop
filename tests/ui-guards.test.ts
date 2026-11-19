@@ -21,7 +21,7 @@ describe('one shared component system', () => {
 
   it('only tokens.css holds raw colour, size and font values', () => {
     for (const { f, text } of src.filter(({ f }) => f.endsWith('.css') && !f.endsWith('tokens.css'))) {
-      const c = code(text).replace(/@media[^{]*/g, ''); // breakpoints cannot use var()
+      const c = code(text).replace(/@(media|container)[^{]*/g, ''); // breakpoints cannot use var()
       expect(c, `${f}: hex colour`).not.toMatch(/#[0-9a-f]{3,8}\b/i);
       expect(c, `${f}: rgb/hsl colour`).not.toMatch(/\b(rgba?|hsla?|oklch)\(/);
       expect(c, `${f}: px literal`).not.toMatch(/\d+px/);

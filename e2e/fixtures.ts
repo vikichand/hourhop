@@ -174,3 +174,24 @@ export async function openRealPopup(from: Page) {
     }
   }
 }
+
+/**
+ * Content wider or taller than its own box (overflow: visible), e.g. a duration spilling out of a highlighted day.
+ * Intentional clipping (overflow hidden/auto, text-overflow: ellipsis) and SVG internals are not counted.
+ */
+export async function spills(p: Page) {
+  return p.evaluate(() => {
+    const out: string[] = [];
+    for (const el of document.querySelectorAll<HTMLElement>('body *')) {
+      if (el.closest('svg') || el.closest('[hidden]')) continue;
+      const cs = getComputedStyle(el);
+      if (cs.display === 'none' || cs.display === 'contents' || cs.visibility === 'hidden' || cs.position === 'fixed') continue;
+      if (!el.offsetWidth || !el.offsetHeight) continue;
+      const name = `${el.tagName.toLowerCase()}.${String(el.className).trim().replace(/\s+/g, '.')} "${(el.textContent ?? '').trim().slice(0, 24)}"`;
+      if (cs.overflowX === 'visible' && el.scrollWidth > el.clientWidth + 1) out.push(`${name} wider by ${el.scrollWidth - el.clientWidth}px`);
+      // Height: boxes only. Plain text with tight leading (the big timer) reports taller glyphs than its line box.
+      if (cs.overflowY === 'visible' && el.firstElementChild && el.scrollHeight > el.clientHeight + 1 && el.tagName !== 'HTML' && el.tagName !== 'BODY') out.push(`${name} taller by ${el.scrollHeight - el.clientHeight}px`);
+    }
+    return [...new Set(out)];
+  });
+}

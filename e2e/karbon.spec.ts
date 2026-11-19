@@ -1,5 +1,5 @@
 import type { BrowserContext, Page } from '@playwright/test';
-import { expect, test } from './fixtures';
+import { expect, spills, test } from './fixtures';
 
 // Karbon mode against a mocked api.karbonhq.com (context.route), on extension tab pages only, so no test can
 // ever reach the real Karbon. Shapes follow Karbon's published OpenAPI spec (karbonhq/karbon-api-reference).
@@ -67,6 +67,14 @@ test('connect Karbon: assigned open work and real budgets appear; read-only GETs
   await expect(p.locator('.dial-sub')).toHaveText('1h 45m of 3h budget'); // loaded lazily from EstimateSummaries
   await p.getByRole('button', { name: 'Budget details' }).click();
   await expect(p.getByText(/Your allocation: Karbon recorded 45m \/ 2h 00m/)).toBeVisible();
+  for (const w of [320, 380, 600]) { // Karbon's sync bar and budget lines fit their boxes
+    await p.setViewportSize({ width: w, height: 1000 });
+    expect(await spills(p), `side panel @${w}px`).toEqual([]);
+  }
+  for (const w of [320, 1240]) {
+    await s.setViewportSize({ width: w, height: 1000 });
+    expect(await spills(s), `settings @${w}px`).toEqual([]);
+  }
 
   expect(seen.length).toBeGreaterThan(0);
   for (const r of seen) {

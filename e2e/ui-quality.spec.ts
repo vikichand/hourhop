@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import type { Page } from '@playwright/test';
-import { EVIDENCE, openRealPopup, expect, rowAction, sampleMode, test } from './fixtures';
+import { EVIDENCE, openRealPopup, expect, rowAction, sampleMode, spills, test } from './fixtures';
 
 declare const chrome: any;
 declare const axe: any;
@@ -287,6 +287,89 @@ test('screenshot matrix for R0 design audit: states x themes x widths, including
     await pop.evaluate('window.close()').catch(() => undefined);
     pop.close();
   }
+});
+
+/** Long days on every past day of this week (widest durations, e.g. "23h 59m"), in sample mode. */
+async function seedLongWeek(p: Page) {
+  await p.evaluate(() => new Promise<void>((res) => {
+    const target = { kind: 'work-item', tenantId: 'sample', clientKind: 'Organization', clientId: 'org-alder', workItemId: 'wi-1002' };
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const fmt = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' });
+    const now = new Date();
+    const dow = (now.getDay() + 6) % 7;
+    const sessions: any[] = [];
+    for (let d = dow; d >= 1; d--) {
+      const day = new Date(now); day.setDate(now.getDate() - d); day.setHours(0, 0, 30, 0);
+      const mins = d === 1 ? 23 * 60 + 59 : 10 * 60 + 48 + d * 7;
+      const s = day.getTime(), e = s + mins * 60_000, iso = new Date(s).toISOString();
+      sessions.push({
+        id: crypto.randomUUID(), profileId: 'sample', target, targetKey: 'w:sample:Organization:org-alder:wi-1002',
+        label: { client: 'Alder & Finch Joinery Ltd', work: 'VAT return Q3' }, dateLocal: fmt.format(s), timeZone: tz, status: 'stopped',
+        startedAtUtc: iso, segments: [{ startedAtUtc: iso, endedAtUtc: new Date(e).toISOString(), elapsedMs: e - s }],
+        userNote: 'Long day', notesSchema: 1, billableIntent: 'billable', submissionStatus: 'local-only', lastEditedAtUtc: iso, version: 1,
+      });
+    }
+    const r = indexedDB.open('hourhop');
+    r.onsuccess = () => {
+      const t = r.result.transaction(['sessions'], 'readwrite');
+      for (const s of sessions) t.objectStore('sessions').put(s);
+      t.oncomplete = () => { r.result.close(); res(); };
+    };
+  }));
+}
+
+test('no text or control spills out of its box on any surface, at any supported width [KWS-036]', async ({ open }) => {
+  const found: string[] = [];
+  const check = async (p: Page, where: string, widths: number[]) => {
+    for (const w of widths) {
+      await p.setViewportSize({ width: w, height: 1000 });
+      await p.waitForTimeout(150);
+      for (const s of await spills(p)) found.push(`${where} @${w}px: ${s}`);
+      if (pageWidthsSet.has(w)) await p.screenshot({ path: path.join(EVIDENCE, `fit-${where.replace(/[^a-z0-9]+/gi, '-')}-${w}.png`), fullPage: true });
+    }
+  };
+  const panelWidths = [320, 360, 400, 480, 600];
+  const pageWidths = [320, 360, 480, 600, 768, 900, 1024, 1240, 1440];
+  const pageWidthsSet = new Set([...panelWidths, ...pageWidths, 300]);
+
+  const p = await open('sidepanel.html');
+  await p.getByRole('button', { name: 'Try sample data' }).waitFor();
+  await check(p, 'panel onboarding', panelWidths);
+  await p.getByRole('button', { name: 'Try sample data' }).click();
+  await p.getByRole('region', { name: 'Current timer' }).waitFor();
+  await seedLongWeek(p);
+  await p.reload();
+  await p.getByRole('button', { name: 'All work', exact: true }).click();
+  await check(p, 'panel idle, all work', panelWidths);
+  await rowAction(p, ALDER, 'VAT return Q3').click();
+  await p.getByRole('button', { name: 'Budget details' }).click();
+  await check(p, 'panel running, budget details', panelWidths);
+  await p.getByRole('button', { name: 'Recent', exact: true }).click();
+  await check(p, 'panel recent', panelWidths);
+
+  const pop = await open('popup.html');
+  await check(pop, 'popup page', [300, 360]);
+
+  const r = await open('review.html');
+  await r.getByText('VAT return Q3').first().waitFor();
+  // Every 16px: the day strip switches layout by its card's width, so no width between the breakpoints may break.
+  await check(r, 'review today', Array.from({ length: 71 }, (_, i) => 320 + i * 16));
+  await r.getByRole('button', { name: 'Last 7 days', exact: true }).click();
+  await check(r, 'review last 7 days', pageWidths);
+
+  await r.getByRole('button', { name: /^Edit session/ }).first().click();
+  await r.getByRole('dialog', { name: 'Edit session' }).waitFor();
+  await check(r, 'review edit dialog', [320, 360, 600, 1240]);
+  await r.keyboard.press('Escape');
+
+  const s = await open('options.html');
+  await s.getByRole('heading', { name: 'Appearance' }).waitFor();
+  await check(s, 'settings', pageWidths);
+  await s.getByRole('button', { name: 'Delete all HourHop data…' }).click();
+  await s.getByRole('dialog', { name: 'Delete all HourHop data?' }).waitFor();
+  await check(s, 'settings delete dialog', [320, 600, 1240]);
+
+  expect(found, found.join('\n')).toEqual([]);
 });
 
 test('search has exactly one clear control and form fields add no stray height [KWS-036]', async ({ open }) => {
