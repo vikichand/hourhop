@@ -36,7 +36,7 @@ What happens next:
 
 Please know before connecting:
 
-- **The keys can read the whole firm's Karbon data.** HourHop only asks Karbon for your assigned work and only shows you that, but the keys themselves are not limited to you. Treat them like a password. They are stored only in this browser profile, are sent only to `https://api.karbonhq.com`, are never shown again after saving, and are removed by **Disconnect** or **Delete all data**.
+- **The keys give full access to the whole firm's Karbon data.** Karbon's API uses the same two keys to read and to create, change or delete contacts, work items, notes and more, and Karbon documents no read-only key. HourHop only reads your assigned work and its budgets, but the keys themselves are not limited to you or to reading. Treat them like an admin password. They are stored only in this browser profile, are sent only to `https://api.karbonhq.com`, are never shown again after saving, and are removed by **Disconnect** or **Delete all data**.
 - **HourHop never writes to Karbon.** Every request is a read (`GET`), enforced by tests on the shipped build.
 - **Not yet verified against a live Karbon account.** The integration is built and tested against Karbon's published API specification ([karbonhq/karbon-api-reference](https://github.com/karbonhq/karbon-api-reference), version of 29 October 2026, last checked 19 November 2026) with a simulated Karbon that behaves as that specification describes. If connecting fails, the message says why (rejected keys, API access not enabled, email not found, network); please open an issue with that message.
 

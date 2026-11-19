@@ -128,7 +128,7 @@ function KarbonCard({ app, onNotice }: { app: AppApi; onNotice: (m: string) => v
         <TextField label="Application ID" type="password" autocomplete="new-password" value={appId} onInput={(e) => setAppId((e.currentTarget as HTMLInputElement).value)} />
         <TextField label="AccessKey" type="password" autocomplete="new-password" value={accessKey} onInput={(e) => setAccessKey((e.currentTarget as HTMLInputElement).value)} />
         <TextField label="Your Karbon email" type="email" autocomplete="email" value={email} onInput={(e) => setEmail((e.currentTarget as HTMLInputElement).value)} />
-        <p class="xs muted">These keys can read your whole firm's Karbon data. They are stored only in this browser and sent only to Karbon's official API.</p>
+        <p class="xs muted">These keys give full access to your whole firm's Karbon data, including changing it; {APP.brand} only reads. They are stored only in this browser and sent only to Karbon's official API.</p>
         <div><Button variant="primary" busy={app.busy === 'karbon-connect'} onClick={connect}>Connect Karbon</Button></div>
       </section>
     );
