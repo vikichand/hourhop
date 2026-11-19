@@ -69,7 +69,8 @@ function ClockWarnings({ session }: { session: LocalSession }) {
 function NoteEditor({ app, session, onDone }: { app: AppApi; session: LocalSession; onDone: () => void }) {
   const [text, setText] = useState(session.userNote ?? '');
   const [saved, setSaved] = useState(false);
-  useEffect(() => { setText(session.userNote ?? ''); setSaved(false); }, [session.id]);
+  // No reset effect: effects run after paint, and a late one could wipe text typed in the meantime.
+  // The parent keys this editor by session id, so a different session always mounts a fresh editor.
   const save = async () => {
     if (text === (session.userNote ?? '')) return;
     setSaved(await app.act('note', (l) => l.updateDetails(session.id, { userNote: text })));
@@ -145,7 +146,7 @@ function ActiveCard({ app, a, live }: { app: AppApi; a: LocalSession; live: prea
           : <RoundControl label="Resume" icon="play" primary busy={app.busy === 'resume'} onClick={() => app.resumeActive(a.id)} />}
         <RoundControl label="Stop" icon="stop" busy={app.busy === 'stop'} onClick={() => app.stopActive(a.id)} />
       </div>
-      {noteOpen && <NoteEditor app={app} session={a} onDone={() => setNoteOpen(false)} />}
+      {noteOpen && <NoteEditor key={a.id} app={app} session={a} onDone={() => setNoteOpen(false)} />}
       <div class="tracking-foot">
         <span>Saved on this device, not sent to Karbon</span>
         {firstLine && <span class={`num ${firstLine.level === 'over' ? 'over' : firstLine.level === 'near' ? 'warn' : ''}`}>{firstLine.remaining}</span>}
