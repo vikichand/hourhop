@@ -130,7 +130,7 @@ test('editing only one field of a switched session keeps the untouched milliseco
   const p = await sampleMode(open);
   await rowAction(p, ALDER, 'VAT return Q3').click();
   await p.waitForTimeout(1300);
-  await p.getByRole('button', { name: 'All', exact: true }).click();
+  await p.getByRole('button', { name: 'All work', exact: true }).click();
   await rowAction(p, 'Brightwater Dental Group', 'Payroll run November').click();
   await p.waitForTimeout(2300);
   await p.getByRole('button', { name: 'Stop', exact: true }).click();

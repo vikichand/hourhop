@@ -8,20 +8,31 @@ import { useEffect, useId, useRef } from 'preact/hooks';
 
 // ---------- icons: one original outline family, 1.75 stroke on a 24 grid ----------
 const PATHS = {
-  settings: 'M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm7.4-2.1.1-1.4-.1-1.4 2-1.6-2-3.4-2.4 1a7.6 7.6 0 0 0-2.4-1.4L14.2 2h-4.4l-.4 2.7A7.6 7.6 0 0 0 7 6.1l-2.4-1-2 3.4 2 1.6-.1 1.4.1 1.4-2 1.6 2 3.4 2.4-1c.7.6 1.5 1 2.4 1.4l.4 2.7h4.4l.4-2.7c.9-.4 1.7-.8 2.4-1.4l2.4 1 2-3.4-2-1.6Z',
+  settings: 'M10.3 3.2h3.4l.5 2.4c.6.2 1.2.5 1.7.9l2.3-.8 1.7 2.9-1.8 1.6c.1.6.1 1.2 0 1.8l1.8 1.6-1.7 2.9-2.3-.8c-.5.4-1.1.7-1.7.9l-.5 2.4h-3.4l-.5-2.4c-.6-.2-1.2-.5-1.7-.9l-2.3.8-1.7-2.9 1.8-1.6a5.6 5.6 0 0 1 0-1.8L3.9 8.6l1.7-2.9 2.3.8c.5-.4 1.1-.7 1.7-.9l.7-2.4ZM12 14.8a2.8 2.8 0 1 0 0-5.6 2.8 2.8 0 0 0 0 5.6Z',
   search: 'M10.5 17a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13Zm4.6-1.9L20 20',
   close: 'M6 6l12 12M18 6 6 18',
   star: 'm12 3.5 2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9L12 3.5Z',
   plus: 'M12 5v14M5 12h14',
-  external: 'M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5',
-  hop: 'M4 17c2.5-6 5.5-9 8-9s4 2 4 4-1.5 4-4 4M14 8c1-2.5 3-4 6-4M17 20h3',
+  hop: 'M4 17c2.5-6 5.5-9 8-9s4 2 4 4-1.5 4-4 4M14 8c1-2.5 3-4 6-4',
+  play: 'M8 5.8v12.4a1 1 0 0 0 1.5.86l10-6.2a1 1 0 0 0 0-1.72l-10-6.2A1 1 0 0 0 8 5.8Z',
+  pause: 'M8.7 5.5v13M15.3 5.5v13',
+  stop: 'M8 6.5h8a1.5 1.5 0 0 1 1.5 1.5v8a1.5 1.5 0 0 1-1.5 1.5H8A1.5 1.5 0 0 1 6.5 16V8A1.5 1.5 0 0 1 8 6.5Z',
+  note: 'M5 19h4l10-10-4-4L5 15v4ZM13.5 6.5l4 4',
+  timer: 'M12 20.5a7.5 7.5 0 1 0 0-15 7.5 7.5 0 0 0 0 15ZM12 9v4l2.5 2M10 2.8h4',
+  list: 'M9 7h11M9 12h11M9 17h11M4.5 7h.01M4.5 12h.01M4.5 17h.01',
+  export: 'M12 4v11M7.5 8.5 12 4l4.5 4.5M5 15v3.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V15',
+  copy: 'M10 8h8.5A1.5 1.5 0 0 1 20 9.5V18a1.5 1.5 0 0 1-1.5 1.5H10A1.5 1.5 0 0 1 8.5 18V9.5A1.5 1.5 0 0 1 10 8ZM5 15V6a1.5 1.5 0 0 1 1.5-1.5H15',
+  panel: 'M6.5 4.5h11a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3h-11a3 3 0 0 1-3-3v-9a3 3 0 0 1 3-3ZM14 4.5v15',
 } as const;
 export type IconName = keyof typeof PATHS;
 
+const SOLID: Partial<Record<IconName, true>> = { play: true, stop: true };
+
 export function Icon({ name, filled }: { name: IconName; filled?: boolean }) {
+  const solid = filled || SOLID[name];
   return (
     <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"
-      fill={filled ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+      fill={solid ? 'currentColor' : 'none'} stroke="currentColor" stroke-width={name === 'pause' ? 3.2 : 1.75} stroke-linecap="round" stroke-linejoin="round">
       <path d={PATHS[name]} />
     </svg>
   );
@@ -49,11 +60,11 @@ export function Button({ variant = 'secondary', size = 'md', busy, block, inert,
   );
 }
 
-export function IconButton({ label, icon, pressed, filled, onClick, ...rest }: {
-  label: string; icon: IconName; pressed?: boolean; filled?: boolean; onClick: () => void;
+export function IconButton({ label, icon, pressed, filled, onClick, variant, ...rest }: {
+  label: string; icon: IconName; pressed?: boolean; filled?: boolean; onClick: () => void; variant?: 'primary' | 'plain';
 } & Omit<JSX.HTMLAttributes<HTMLButtonElement>, 'onClick' | 'icon'>) {
   return (
-    <button type="button" class="icon-btn" aria-label={label} title={label} aria-pressed={pressed} onClick={onClick} {...rest}>
+    <button type="button" class={`icon-btn${variant ? ` ${variant}` : ''}`} aria-label={label} title={label} aria-pressed={pressed} onClick={onClick} {...rest}>
       <Icon name={icon} filled={filled} />
     </button>
   );
@@ -136,7 +147,7 @@ export function FilterGroup<T extends string>({ label, options, value, onChange 
 export type StatusKind = 'running' | 'paused' | 'local' | 'review' | 'sample' | 'warning' | 'error' | 'neutral';
 export function StatusText({ kind, children, pill }: { kind: StatusKind; children: ComponentChildren; pill?: boolean }) {
   return (
-    <span class={`status status-${kind}${pill ? ' pill' : ''}`}>
+    <span class={`status status-${kind}${pill ? ' mode' : ''}`}>
       <span class="status-dot" aria-hidden="true" />
       {children}
     </span>
@@ -147,7 +158,7 @@ export function StatusText({ kind, children, pill }: { kind: StatusKind; childre
 export function AppHeader({ status, children, title }: { status?: ComponentChildren; children?: ComponentChildren; title?: string }) {
   return (
     <header class="header">
-      <div class="brand"><Icon name="hop" /><span>{title ?? APP.brand}</span></div>
+      <div class="brand"><BrandMark /><span>{title ?? APP.brand}</span></div>
       <div class="grow row">{status}</div>
       {children}
     </header>
@@ -222,4 +233,134 @@ export function Disclosure({ expanded, onToggle, children }: { expanded: boolean
 
 export function Meter({ ratio, level }: { ratio: number; level: string }) {
   return <div class={`meter meter-${level}`} aria-hidden="true"><span style={{ width: `${Math.round(ratio * 100)}%` }} /></div>;
+}
+
+// ---------- control-room pieces ----------
+
+/** Round control with a visible text label underneath (Note / Pause / Stop). */
+export function RoundControl({ label, icon, ariaLabel, primary, busy, onClick }: {
+  label: string; icon: IconName; ariaLabel?: string; primary?: boolean; busy?: boolean; onClick: () => void;
+}) {
+  return (
+    <div class="ctl">
+      <button type="button" class={`icon-btn${primary ? ' primary' : ''}`} aria-label={ariaLabel ?? label}
+        aria-busy={busy || undefined} onClick={() => { if (!busy) onClick(); }}>
+        <Icon name={icon} />
+      </button>
+      <span aria-hidden="true">{label}</span>
+    </div>
+  );
+}
+
+/** Per-work play / pause. Stays focusable while busy so keyboard focus survives the switch. */
+export function PlayButton({ label, live, busy, onClick, ...rest }: {
+  label: string; live: boolean; busy?: boolean; onClick: () => void;
+} & Omit<JSX.HTMLAttributes<HTMLButtonElement>, 'onClick'>) {
+  return (
+    <button type="button" class={`tbtn${live ? ' live' : ''}`} aria-label={label} title={label}
+      aria-busy={busy || undefined} onClick={() => { if (!busy) onClick(); }} {...rest}>
+      <Icon name={live ? 'pause' : 'play'} />
+    </button>
+  );
+}
+
+export function Avatar({ name }: { name: string }) {
+  const letters = name.replace(/[^\p{L}\p{N} ]/gu, ' ').split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join('');
+  return <span class="avatar" aria-hidden="true">{letters || '?'}</span>;
+}
+
+export function BrandMark() {
+  return <span class="mark" aria-hidden="true"><Icon name="hop" /></span>;
+}
+
+/** 270-degree budget dial with tick marks. `ratio` null draws ticks only (no budget known). */
+export function Dial({ ratio, tone, children, ends }: {
+  ratio: number | null; tone: 'live' | 'over' | 'idle'; children: ComponentChildren; ends?: [string, string];
+}) {
+  const id = useId().replace(/[^a-zA-Z0-9]/g, '');
+  const cx = 118, cy = 112, r = 88, start = 135, sweep = 270;
+  const pt = (deg: number, rr: number) => { const a = (deg * Math.PI) / 180; return [cx + rr * Math.cos(a), cy + rr * Math.sin(a)] as const; };
+  const arc = (a0: number, a1: number) => {
+    const [x0, y0] = pt(a0, r), [x1, y1] = pt(a1, r);
+    return `M${x0.toFixed(2)} ${y0.toFixed(2)} A${r} ${r} 0 ${a1 - a0 > 180 ? 1 : 0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
+  };
+  const end = ratio === null ? start : start + sweep * Math.max(0, Math.min(1, ratio));
+  const lit = tone === 'over' ? 'var(--danger-arc)' : 'var(--accent)';
+  const ticks = Array.from({ length: 55 }, (_, i) => {
+    const deg = start + (sweep * i) / 54, major = i % 9 === 0;
+    const [x0, y0] = pt(deg, r + 9), [x1, y1] = pt(deg, r + (major ? 17 : 13));
+    return <line key={i} x1={x0} y1={y0} x2={x1} y2={y1} style={{ stroke: ratio !== null && deg <= end ? lit : 'var(--tick)' }} stroke-width={major ? 1.6 : 1} stroke-linecap="round" />;
+  });
+  const [kx, ky] = pt(end, r);
+  return (
+    <div class="dial">
+      <svg viewBox="0 0 236 206" aria-hidden="true" focusable="false">
+        <defs>
+          <linearGradient id={`iri${id}`} x1="0" y1="1" x2="1" y2="0">
+            <stop offset="0" style={{ stopColor: 'var(--violet-200)' }} /><stop offset=".55" style={{ stopColor: 'var(--aqua-200)' }} /><stop offset="1" style={{ stopColor: 'var(--cream-200)' }} />
+          </linearGradient>
+        </defs>
+        {ticks}
+        <path d={arc(start, start + sweep)} fill="none" style={{ stroke: 'var(--track)' }} stroke-width="3" stroke-linecap="round" />
+        {ratio !== null && ratio > 0 && <path d={arc(start, end)} fill="none" style={{ stroke: tone === 'over' ? 'var(--danger-arc)' : `url(#iri${id})` }} stroke-width="3.5" stroke-linecap="round" />}
+        {ratio !== null && <circle cx={kx} cy={ky} r="6" style={{ fill: tone === 'over' ? 'var(--danger-arc)' : 'var(--cream-200)' }} />}
+      </svg>
+      <div class="dial-center">{children}</div>
+      {ends && <div class="dial-ends" aria-hidden="true"><span>{ends[0]}</span><span>{ends[1]}</span></div>}
+    </div>
+  );
+}
+
+/** Small progress ring for the popup. */
+export function Ring({ ratio, children }: { ratio: number | null; children: ComponentChildren }) {
+  const c = 2 * Math.PI * 38;
+  return (
+    <div class="ring">
+      <svg viewBox="0 0 88 88" aria-hidden="true" focusable="false">
+        <circle cx="44" cy="44" r="38" fill="none" style={{ stroke: 'var(--track)' }} stroke-width="4" />
+        {ratio !== null && <circle cx="44" cy="44" r="38" fill="none" style={{ stroke: 'var(--accent)' }} stroke-width="4" stroke-linecap="round"
+          stroke-dasharray={c} stroke-dashoffset={c * (1 - Math.max(0, Math.min(1, ratio)))} transform="rotate(-90 44 44)" />}
+      </svg>
+      <span class="t">{children}</span>
+    </div>
+  );
+}
+
+/** Daily totals as rounded bars, today lit with its value. Real data only, never invented. */
+export function WeekBars({ days, large, label }: { days: { label: string; ms: number; today: boolean; value: string }[]; large?: boolean; label: string }) {
+  const max = Math.max(...days.map((d) => d.ms), 1);
+  return (
+    <div class={`bars${large ? ' lg' : ''}`} role="img" aria-label={`${label}: ${days.map((d) => `${d.label} ${d.value}`).join(', ')}`}>
+      {days.map((d) => (
+        <div class="bar-col" key={d.label}>
+          <div class="bar-fill">
+            <div class={`bar${d.today ? ' today' : ''}`} style={{ height: `${Math.max(4, (d.ms / max) * 100)}%` }}>
+              {d.today && d.ms >= 60_000 && <span class="bar-tip">{d.value}</span>}
+            </div>
+          </div>
+          <span class={`bar-day${d.today ? ' today' : ''}`}>{d.label}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Round navigation rail for the full-tab pages. */
+export function Rail({ current, items }: { current: string; items: { id: string; label: string; icon: IconName; onClick: () => void }[] }) {
+  return (
+    <nav class="rail glass" aria-label="Sections">
+      <BrandMark />
+      {items.map((it) => (
+        <button key={it.id} type="button" class="icon-btn" aria-label={it.label} title={it.label}
+          aria-current={it.id === current ? 'page' : undefined} onClick={it.onClick}>
+          <Icon name={it.icon} />
+        </button>
+      ))}
+    </nav>
+  );
+}
+
+/** A day in the Review day strip. */
+export function DayButton({ pressed, onClick, children, label }: { pressed: boolean; onClick: () => void; children: ComponentChildren; label: string }) {
+  return <button type="button" class="day" aria-pressed={pressed} aria-label={label} onClick={onClick}>{children}</button>;
 }

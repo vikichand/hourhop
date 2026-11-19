@@ -30,14 +30,14 @@ test('popup and real side panel show one shared timer; pausing in one updates th
   const settings = await open('options.html');
   const popup = await openRealPopup(settings);
   await expect.poll(() => popup.evaluate<string>(BODY_TEXT)).toContain('VAT return Q3');
-  await popup.click('.controls .btn-primary'); // Pause, inside the real popup
+  await popup.click('.controls .icon-btn.primary'); // Pause, inside the real popup
   await expect(tab.getByRole('button', { name: 'Resume', exact: true })).toBeVisible();
-  await popup.click('.pad .btn'); // Open work switcher
+  await popup.click('button.btn-block'); // Open work switcher
 
   const panel = await attachTarget('/sidepanel.html');
   await expect.poll(() => panel.evaluate<string>(BODY_TEXT)).toContain('Paused');
   expect(await panel.evaluate<string>('document.querySelector(".tracking .work-title").textContent')).toBe('VAT return Q3');
-  await panel.click('.tracking .btn-primary'); // Resume in the real side panel
+  await panel.click('.tracking .icon-btn.primary'); // Resume in the real side panel
   await expect(tab.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
   const db = await dumpDb(tab);
   assertLedgerInvariants(db);
@@ -49,8 +49,8 @@ test('competing starts from two windows leave exactly one running session, 15 ro
   const a = await sampleMode(open);
   const b = await open('sidepanel.html');
   await b.setViewportSize({ width: 360, height: 800 });
-  await b.getByRole('button', { name: 'All', exact: true }).click();
-  await a.getByRole('button', { name: 'All', exact: true }).click();
+  await b.getByRole('button', { name: 'All work', exact: true }).click();
+  await a.getByRole('button', { name: 'All work', exact: true }).click();
   const targets = [['VAT return Q3', 'Management accounts Q3'], ['Payroll run November', 'VAT return Q3']];
   for (let i = 0; i < 15; i++) {
     const [x, y] = targets[i % 2]!;
@@ -85,7 +85,7 @@ test('browser restart keeps the running session and derives elapsed time from ti
     p = await ctx.newPage();
     await p.goto(`chrome-extension://${id}/sidepanel.html`);
     await expect(p.locator('.tracking .work-title')).toHaveText('VAT return Q3');
-    await expect(p.getByText('Running', { exact: true })).toBeVisible();
+    await expect(p.locator('.tracking').getByText('Running', { exact: true })).toBeVisible();
     const t = await p.locator('.timer').textContent();
     const secs = t!.split(':').map(Number).reduce((a, n) => a * 60 + n, 0);
     expect(secs).toBeGreaterThanOrEqual(2);
@@ -105,7 +105,7 @@ test('storage write failure is shown and the previous timer stays truthful [KWS-
   await p.evaluate(() => {
     (IDBObjectStore.prototype as any).put = () => { throw new DOMException('Quota exceeded', 'QuotaExceededError'); };
   });
-  await p.getByRole('button', { name: 'All', exact: true }).click();
+  await p.getByRole('button', { name: 'All work', exact: true }).click();
   await rowAction(p, 'Quarry Lane Bakery Cooperative (Northern Region Operations Division)', 'Management accounts Q3').click();
   await expect(p.getByRole('alert')).toContainText('Not saved');
   await expect(p.locator('.tracking .work-title')).toHaveText('VAT return Q3');
@@ -133,7 +133,7 @@ test('search keeps focus and caret while the timer ticks; keyboard-only start/sw
   expect(focused).toMatch(/^Switch: Alder & Finch Joinery Ltd, Monthly bookkeeping/);
   await p.keyboard.press('Enter');
   await expect(p.locator('.tracking .work-title')).toHaveText('Monthly bookkeeping');
-  expect(await p.evaluate(() => document.activeElement?.getAttribute('aria-label'))).toMatch(/^Tracking: /);
+  expect(await p.evaluate(() => document.activeElement?.getAttribute('aria-label'))).toMatch(/^Pause: /);
   await p.keyboard.press('ArrowDown');
   await p.keyboard.press('ArrowUp');
   await p.keyboard.press('ArrowUp');
@@ -151,13 +151,19 @@ test('search keeps focus and caret while the timer ticks; keyboard-only start/sw
   expect(db.sessions.map((s) => s.status).sort()).toEqual(['stopped', 'stopped']);
 });
 
-test('same-target select is a no-op; completed work asks before starting [KWS-009]', async ({ open }) => {
+test('play on the running item pauses it and play again resumes the same session; completed work asks first [KWS-003, KWS-009]', async ({ open }) => {
   const p = await sampleMode(open);
   await rowAction(p, ALDER, 'VAT return Q3').click();
-  await expect(rowAction(p, ALDER, 'VAT return Q3')).toHaveText('Tracking');
-  await rowAction(p, ALDER, 'VAT return Q3').click({ force: true }); // aria-disabled, still focusable
-  expect((await dumpDb(p)).sessions).toHaveLength(1);
-  await p.getByRole('button', { name: 'All', exact: true }).click();
+  await expect(rowAction(p, ALDER, 'VAT return Q3')).toHaveAttribute('aria-label', /^Pause: /);
+  await rowAction(p, ALDER, 'VAT return Q3').click();
+  await expect(p.getByRole('button', { name: 'Resume', exact: true })).toBeVisible();
+  await expect(rowAction(p, ALDER, 'VAT return Q3')).toHaveAttribute('aria-label', /^Resume: /);
+  await rowAction(p, ALDER, 'VAT return Q3').click();
+  await expect(p.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
+  const db = await dumpDb(p);
+  expect(db.sessions).toHaveLength(1);
+  expect(db.sessions[0].segments).toHaveLength(1);
+  await p.getByRole('button', { name: 'All work', exact: true }).click();
   await p.getByLabel('Status').selectOption('completed');
   await rowAction(p, ALDER, 'Monthly bookkeeping').click();
   await expect(p.getByRole('dialog', { name: 'Start completed work?' })).toBeVisible();
@@ -183,7 +189,7 @@ test('favorite + typed note survive restart and extension disable/re-enable; off
     await ctx.setOffline(true); // no network at all: capture must still work
     let { p } = await openPanel(ctx);
     await p.getByRole('button', { name: 'Try sample data' }).click();
-    await p.getByRole('button', { name: 'All', exact: true }).click();
+    await p.getByRole('button', { name: 'All work', exact: true }).click();
     await p.getByRole('button', { name: 'Add Payroll run November to favorites' }).click();
     await rowAction(p, 'Brightwater Dental Group', 'Payroll run November').click();
     await p.getByRole('button', { name: 'Add note' }).click();
@@ -195,7 +201,7 @@ test('favorite + typed note survive restart and extension disable/re-enable; off
     ctx = await launch(dir);
     ({ p } = await openPanel(ctx));
     await p.getByRole('button', { name: /^Favorites/ }).click();
-    await expect(rowAction(p, 'Brightwater Dental Group', 'Payroll run November')).toHaveText('Tracking');
+    await expect(rowAction(p, 'Brightwater Dental Group', 'Payroll run November')).toHaveAttribute('aria-label', /^Pause: /);
     await p.getByRole('button', { name: 'Edit note' }).click();
     await expect(p.getByLabel('Note (plain text)')).toHaveValue('Checked P11D figures\n- emailed client');
 
@@ -214,8 +220,8 @@ test('favorite + typed note survive restart and extension disable/re-enable; off
     const s = await ctx.newPage();
     await s.goto(`chrome-extension://${extId}/options.html`);
     await s.getByRole('button', { name: 'Local only', exact: true }).click();
-    await expect(p.getByRole('button', { name: 'Favorites 0' })).toBeVisible();
-    await p.getByRole('button', { name: 'Favorites 0' }).click();
+    await expect(p.getByRole('button', { name: 'Favorites', exact: true })).toBeVisible();
+    await p.getByRole('button', { name: 'Favorites', exact: true }).click();
     await expect(p.getByText('No favorites yet')).toBeVisible();
     await expect(p.getByText('Payroll run November')).toHaveCount(0);
     await ctx.close();

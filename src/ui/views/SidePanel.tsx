@@ -1,32 +1,31 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { short } from '../../domain/time';
 import { elapsedMs } from '../../domain/timer';
 import { WORK_STATUSES, type Client, type ClientKind, type WorkItem, type WorkStatus } from '../../domain/types';
 import { PROVIDERS } from '../../integrations/providers';
 import { sampleCatalog } from '../../integrations/sample';
 import { APP } from '../../app-meta';
 import { openReview, openSettings, useApp, useNow, type AppApi } from '../app-state';
-import { AppHeader, Banner, Button, Dialog, EmptyState, FilterGroup, IconButton, SearchBox, Select, StatusText, TextField } from '../components';
-import { ModeStatus, TrackingPanel, WorkRow } from '../parts';
+import { AppHeader, Banner, Button, Dialog, EmptyState, FilterGroup, Icon, IconButton, PlayButton, Ring, SearchBox, Select, TextField } from '../components';
+import { ModeStatus, TrackingPanel, WeekCard, WorkRow, WorkTile } from '../parts';
 import { buildRows, matchesStatus, search, type Row, type StatusFilter } from '../rows';
 
-const PAGE = 50; // bounded DOM: at most PAGE rows rendered until the user asks for more (KWS-029)
+const PAGE = 50; // bounded DOM: at most PAGE items rendered until the user asks for more (KWS-029)
 
 export function SidePanel() {
   const app = useApp();
   const s = app.snap;
   return (
-    <div class="shell">
+    <div class="shell room">
       <AppHeader status={<ModeStatus app={app} />}>
         <IconButton label="Settings" icon="settings" onClick={openSettings} />
       </AppHeader>
       {app.error && <Banner tone="error" onDismiss={() => app.setError(null)}>{app.error}</Banner>}
-      {!s ? <p class="pad muted" role="status">Loading…</p>
+      {!s ? <p class="muted" role="status">Loading…</p>
         : !s.state.profile ? <Onboarding app={app} />
         : <>
             <TrackingPanel app={app} />
             <Switcher app={app} />
-            <TodayFooter app={app} />
+            <WeekCard app={app} />
           </>}
     </div>
   );
@@ -42,21 +41,26 @@ export function Onboarding({ app }: { app: AppApi }) {
       await l.setProfile(p);
     });
   return (
-    <section class="section stack" aria-labelledby="ob-title">
-      <h1 id="ob-title" class="section-title">{APP.tagline}</h1>
-      <p>{APP.brand} keeps one timer running across your client work. Switch to another work item in one click; every interval is kept for review and export.</p>
-      <Banner tone="info">
-        Karbon connection isn't available in this version. {APP.brand} does not read or write any Karbon data. Your time is stored only in this browser profile.
-      </Banner>
-      <div class="stack-tight">
-        <Button variant="primary" block busy={app.busy === 'mode-sample'} onClick={() => choose('sample')}>Try sample data</Button>
-        <p class="xs muted">{PROVIDERS.sample.description}</p>
-      </div>
-      <div class="stack-tight">
-        <Button variant="secondary" block busy={app.busy === 'mode-local'} onClick={() => choose('local')}>Track locally</Button>
-        <p class="xs muted">{PROVIDERS.local.description}</p>
-      </div>
-      <p class="xs muted">No account, no sign-in, no network access. {APP.nonAffiliation}</p>
+    <section class="glass card centered" aria-labelledby="ob-title">
+      <Ring ratio={null}>0:00</Ring>
+      <h1 id="ob-title" class="page-title">{APP.tagline}</h1>
+      <p class="muted">One timer for all your client work. Jump to another job in one tap; every minute is kept for review and export.</p>
+      <ul class="tiles full">
+        <li class="glass tile">
+          <div class="tile-top"><span class="avatar" aria-hidden="true"><Icon name="list" /></span>
+            <PlayButton label="Track locally" live={false} busy={app.busy === 'mode-local'} onClick={() => choose('local')} /></div>
+          <p class="work-title">Track locally</p><p class="xs muted">{PROVIDERS.local.description}</p>
+        </li>
+        <li class="glass tile">
+          <div class="tile-top"><span class="avatar" aria-hidden="true"><Icon name="star" /></span>
+            <PlayButton label="Try sample data" live={false} busy={app.busy === 'mode-sample'} onClick={() => choose('sample')} /></div>
+          <p class="work-title">Try sample data</p><p class="xs muted">{PROVIDERS.sample.description}</p>
+        </li>
+      </ul>
+      <p class="xs dim">
+        No account, no sign-in, no network access. Karbon connection isn't available in this version: {APP.brand} does not read or
+        write any Karbon data, and your time is stored only in this browser profile. {APP.nonAffiliation}
+      </p>
     </section>
   );
 }
@@ -80,12 +84,15 @@ function Switcher({ app }: { app: AppApi }) {
 
   const effectiveTab: Tab = tab ?? (s.recents.length ? 'recent' : 'all');
   const fav = useMemo(() => new Set(s.favorites), [s.favorites]);
+  const searching = !!query.trim();
 
   let shown: Row[];
-  if (query.trim()) shown = search(rows, query).filter((r) => matchesStatus(r, status));
+  if (searching) shown = search(rows, query).filter((r) => matchesStatus(r, status));
   else if (effectiveTab === 'recent') shown = s.recents.map((k) => byKey.get(k)).filter((r): r is Row => !!r);
   else if (effectiveTab === 'favorites') shown = rows.filter((r) => fav.has(r.key));
   else shown = rows.filter((r) => matchesStatus(r, status));
+  // Recent and Favorites are short lists shown as tiles; search results and All work are dense rows.
+  const asTiles = !searching && effectiveTab !== 'all';
 
   const todayByKey = useMemo(() => {
     const m = new Map<string, number>();
@@ -126,52 +133,54 @@ function Switcher({ app }: { app: AppApi }) {
     list[Math.min(list.length - 1, Math.max(0, i + (e.key === 'ArrowDown' ? 1 : -1)))]?.focus();
   };
 
-  const start = (r: Row) => {
-    if (s.active?.targetKey === r.key && s.active.status === 'running') return;
-    if (r.status === 'Completed' && s.active?.targetKey !== r.key) return setConfirm(r);
+  /** Play on another item switches; on the live item it pauses; on the paused item it resumes. */
+  const play = (r: Row) => {
+    const a = s.active;
+    if (a?.targetKey === r.key) return a.status === 'running' ? app.pauseActive(a.id) : app.resumeActive(a.id);
+    if (r.status === 'Completed') return setConfirm(r);
     app.startTarget(r.target, { client: r.client.name, work: r.title }, r.key);
   };
 
-  const heading = query.trim() ? `${shown.length} ${shown.length === 1 ? 'result' : 'results'}` : `${shown.length} ${effectiveTab === 'recent' ? 'recent' : effectiveTab === 'favorites' ? 'favorite' : 'work'} ${shown.length === 1 ? 'item' : 'items'}`;
+  const heading = searching ? `${shown.length} ${shown.length === 1 ? 'result' : 'results'}` : `${shown.length} ${effectiveTab === 'recent' ? 'recent' : effectiveTab === 'favorites' ? 'favorite' : 'work'} ${shown.length === 1 ? 'item' : 'items'}`;
+  const Item = asTiles ? WorkTile : WorkRow;
 
   return (
-    <section aria-label="Work switcher">
-      <div class="section">
-        <SearchBox label="Search clients and work items" value={query} onInput={setQuery} onKeyDown={onSearchKey} inputRef={searchRef} />
-        <div class="row wrap">
-          <FilterGroup label="Show" value={effectiveTab} onChange={(t) => { setTab(t); setQuery(''); }} options={[
-            { id: 'recent', label: 'Recent' }, { id: 'favorites', label: 'Favorites', count: s.favorites.length }, { id: 'all', label: 'All' },
-          ]} />
-          <div class="grow" />
-          {PROVIDERS[profile].canEditCatalog && <Button size="sm" variant="quiet" onClick={() => setAdding(true)}>Add work</Button>}
-        </div>
-        {(effectiveTab === 'all' || query.trim()) && (
-          <Select label="Status" value={status} onChange={setStatus} options={[
-            { value: 'open', label: 'Open (not completed)' }, { value: 'actionable', label: 'Ready to start or in progress' },
-            { value: 'completed', label: 'Completed' }, { value: 'all', label: 'All statuses' },
-          ]} />
-        )}
-      </div>
+    <section class="stack" aria-label="Work switcher">
+      <SearchBox label="Search clients and work items" value={query} onInput={setQuery} onKeyDown={onSearchKey} inputRef={searchRef} />
+      <FilterGroup label="Show" value={effectiveTab} onChange={(t) => { setTab(t); setQuery(''); }} options={[
+        { id: 'recent', label: 'Recent' }, { id: 'favorites', label: 'Favorites' }, { id: 'all', label: 'All work' },
+      ]} />
+      {(effectiveTab === 'all' || searching) && (
+        <Select label="Status" value={status} onChange={setStatus} options={[
+          { value: 'open', label: 'Open (not completed)' }, { value: 'actionable', label: 'Ready to start or in progress' },
+          { value: 'completed', label: 'Completed' }, { value: 'all', label: 'All statuses' },
+        ]} />
+      )}
       <p class="list-group" aria-live="polite">{heading}</p>
       {shown.length === 0 ? (
-        query.trim() ? <EmptyState title="No matches">Try a client name or part of a work title.</EmptyState>
-        : effectiveTab === 'recent' ? <EmptyState title="No recent work yet" action={<Button size="sm" onClick={() => setTab('all')}>Browse all work</Button>}>Work you track appears here.</EmptyState>
-        : effectiveTab === 'favorites' ? <EmptyState title="No favorites yet">Use the star on any work item to pin it here.</EmptyState>
-        : <EmptyState title="No work items yet" action={PROVIDERS[profile].canEditCatalog && <Button size="sm" variant="primary" onClick={() => setAdding(true)}>Add work item</Button>}>
-            {PROVIDERS[profile].canEditCatalog ? 'Add the clients and work items you track time against.' : 'Nothing matches this status filter.'}
-          </EmptyState>
+        <div class="glass round-sm">
+          {searching ? <EmptyState title="No matches">Try a client name or part of a work title.</EmptyState>
+          : effectiveTab === 'recent' ? <EmptyState title="No recent work yet" action={<Button size="sm" onClick={() => setTab('all')}>Browse all work</Button>}>Work you track appears here.</EmptyState>
+          : effectiveTab === 'favorites' ? <EmptyState title="No favorites yet">Use the star on any work item to pin it here.</EmptyState>
+          : <EmptyState title="No work items yet" action={PROVIDERS[profile].canEditCatalog && <Button size="sm" variant="primary" onClick={() => setAdding(true)}>Add work item</Button>}>
+              {PROVIDERS[profile].canEditCatalog ? 'Add the clients and work items you track time against.' : 'Nothing matches this status filter.'}
+            </EmptyState>}
+        </div>
       ) : (
-        <ul class="list" ref={listRef} onKeyDown={onListKey} aria-label="Work items">
+        <ul class={asTiles ? 'tiles' : 'glass rows'} ref={listRef} onKeyDown={onListKey} aria-label="Work items">
           {shown.slice(0, limit).map((r) => (
-            <WorkRow key={r.key} row={r} active={s.active?.targetKey === r.key ? s.active : undefined} anyActive={!!s.active}
+            <Item key={r.key} row={r} active={s.active?.targetKey === r.key ? s.active : undefined} anyActive={!!s.active}
               favorite={fav.has(r.key)} todayMs={todayByKey.get(r.key) ?? 0} busy={app.busy === r.key}
-              onStart={start} onFavorite={(x) => app.act('fav', (l) => l.toggleFavorite(profile, x.key))} />
+              onPlay={play} onFavorite={(x) => app.act('fav', (l) => l.toggleFavorite(profile, x.key))} />
           ))}
         </ul>
       )}
-      {shown.length > limit && (
-        <div class="section"><Button size="sm" onClick={() => setLimit(limit + PAGE)}>Show more ({shown.length - limit} more)</Button></div>
-      )}
+      {shown.length > limit && <div><Button size="sm" onClick={() => setLimit(limit + PAGE)}>Show more ({shown.length - limit} more)</Button></div>}
+      <div class="row">
+        {PROVIDERS[profile].canEditCatalog && <Button size="sm" onClick={() => setAdding(true)}><Icon name="plus" />Add work</Button>}
+        <div class="grow" />
+        <Button size="sm" onClick={() => openReview()}>Review time</Button>
+      </div>
       <Dialog open={!!confirm} title="Start completed work?" onClose={() => setConfirm(null)} actions={<>
         <Button variant="quiet" onClick={() => setConfirm(null)}>Cancel</Button>
         <Button variant="primary" onClick={() => { const r = confirm!; setConfirm(null); app.startTarget(r.target, { client: r.client.name, work: r.title }, r.key); }}>Start anyway</Button>
@@ -220,20 +229,5 @@ function AddWorkDialog({ app, onClose }: { app: AppApi; onClose: () => void }) {
       <Select label="Status" value={status} onChange={setStatus} options={WORK_STATUSES.map((v) => ({ value: v, label: v }))} />
       {err && <p class="small status-error" role="alert">{err}</p>}
     </Dialog>
-  );
-}
-
-function TodayFooter({ app }: { app: AppApi }) {
-  const s = app.snap!;
-  const now = useNow(30_000);
-  const total = s.today.reduce((t, x) => t + elapsedMs(s.active?.id === x.id ? s.active : x, now), 0);
-  return (
-    <footer class="footer">
-      <div class="grow">
-        <p class="small"><strong class="num">Today {short(total)}</strong> <span class="muted">· {s.today.length} {s.today.length === 1 ? 'session' : 'sessions'}</span></p>
-        <StatusText kind="local">Recorded locally, not confirmed in Karbon</StatusText>
-      </div>
-      <Button size="sm" variant="secondary" onClick={() => openReview()}>Review time</Button>
-    </footer>
   );
 }

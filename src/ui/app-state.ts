@@ -9,6 +9,7 @@ import { DomainError } from '../domain/timer';
 import { currentTimeZone, localDate } from '../domain/time';
 import type { Client, LocalSession, ProfileId, Target, WorkItem } from '../domain/types';
 import { latestOnly } from './latest';
+import { weekDates } from './week';
 import { openLedger, StorageError, type GlobalState, type Ledger, type Theme } from '../storage/ledger';
 
 let ledgerPromise: Promise<Ledger> | null = null;
@@ -17,8 +18,8 @@ export function getLedger(): Promise<Ledger> {
 }
 
 export function applyTheme(theme: Theme) {
-  if (theme === 'system') delete document.documentElement.dataset.theme;
-  else document.documentElement.dataset.theme = theme;
+  // Always explicit: with no attribute the stylesheet falls back to dark, the default.
+  document.documentElement.dataset.theme = theme;
 }
 
 export interface Snapshot {
@@ -29,6 +30,8 @@ export interface Snapshot {
   favorites: string[];
   recents: string[];
   today: LocalSession[];
+  /** This week's sessions, Monday to today, for the week chart. */
+  week: LocalSession[];
   /** All sessions of the active target, for local-unsubmitted budget totals. */
   activeTargetSessions: LocalSession[];
 }
@@ -42,14 +45,15 @@ export function errorMessage(e: unknown): string {
 async function load(l: Ledger): Promise<Snapshot> {
   const { state, active } = await l.active();
   const profile = state.profile;
-  if (!profile) return { state, active, clients: new Map(), work: [], favorites: [], recents: [], today: [], activeTargetSessions: [] };
+  if (!profile) return { state, active, clients: new Map(), work: [], favorites: [], recents: [], today: [], week: [], activeTargetSessions: [] };
   const today = localDate(Date.now(), currentTimeZone());
+  const monday = weekDates(Date.now())[0]!;
   const [cat, favorites, recents, todays, activeTargetSessions] = await Promise.all([
-    l.catalog(profile), l.favorites(profile), l.recentTargets(profile), l.sessionsByDate(profile, today, today),
+    l.catalog(profile), l.favorites(profile), l.recentTargets(profile), l.sessionsByDate(profile, monday, today),
     active ? l.sessionsForTarget(active.targetKey) : Promise.resolve([]),
   ]);
   return {
-    state, active, favorites, recents, today: todays, activeTargetSessions,
+    state, active, favorites, recents, today: todays.filter((x) => x.dateLocal === today), week: todays, activeTargetSessions,
     clients: new Map(cat.clients.map((c) => [c.key, c])), work: cat.work,
   };
 }

@@ -99,10 +99,10 @@ test('Escape closes dialogs and focus returns to the opener [KWS-031]', async ({
 test('responsive 320/360/400/480/600 px and real browser zoom 150%/200%: no horizontal overflow or clipped controls [KWS-031]', async ({ open }) => {
   const p = await sampleMode(open);
   await rowAction(p, QUARRY, 'Catch-up bookkeeping January to September with supplier statement reconciliation and fixed asset register rebuild').click({ trial: false }).catch(async () => {
-    await p.getByRole('button', { name: 'All', exact: true }).click();
+    await p.getByRole('button', { name: 'All work', exact: true }).click();
     await rowAction(p, QUARRY, 'Catch-up bookkeeping January to September with supplier statement reconciliation and fixed asset register rebuild').click();
   });
-  await p.getByRole('button', { name: 'All', exact: true }).click();
+  await p.getByRole('button', { name: 'All work', exact: true }).click();
   const report: Record<string, unknown> = {};
   for (const w of [320, 360, 400, 480, 600]) {
     await p.setViewportSize({ width: w, height: 900 });
@@ -153,7 +153,7 @@ test('hostile catalog text renders as text, never markup [KWS-033]', async ({ op
   let dialogs = 0;
   const p = await sampleMode(open);
   p.on('dialog', (d) => { dialogs++; d.dismiss(); });
-  await p.getByRole('button', { name: 'All', exact: true }).click();
+  await p.getByRole('button', { name: 'All work', exact: true }).click();
   await p.getByRole('searchbox').fill('test co');
   await expect(p.getByText('<img src=x onerror="alert(1)"> Test Co').first()).toBeVisible();
   await p.getByRole('button', { name: 'Start: <img src=x onerror="alert(1)"> Test Co, <script>alert("x")</script> Onboarding' }).click();
@@ -201,7 +201,7 @@ test('1,000 work items and 10,000 intervals: bounded DOM, fast search and switch
   await p.reload();
   await p.getByText('30 recent items').waitFor();
   const loadMs = Date.now() - tLoad;
-  await p.getByRole('button', { name: 'All', exact: true }).click();
+  await p.getByRole('button', { name: 'All work', exact: true }).click();
   await p.getByText('1100 work items').waitFor(); // 1000 work items + 100 client-only rows
   expect(await p.locator('.work-row').count()).toBe(50);
 
@@ -220,7 +220,7 @@ test('1,000 work items and 10,000 intervals: bounded DOM, fast search and switch
     const btn = p.locator('[data-row-action]').nth(i * 2);
     const t0 = Date.now();
     await btn.click();
-    await expect(btn).toHaveText('Tracking');
+    await expect(btn).toHaveAttribute('aria-label', /^Pause: /);
     switchTimes.push(Date.now() - t0);
   }
   const median = (a: number[]) => [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)]!;
@@ -240,7 +240,7 @@ test('screenshot matrix for R0 design audit: states x themes x widths, including
   }
   await p.getByRole('button', { name: 'Try sample data' }).click();
   await p.getByRole('region', { name: 'Current timer' }).waitFor();
-  await p.getByRole('button', { name: 'All', exact: true }).click();
+  await p.getByRole('button', { name: 'All work', exact: true }).click();
   for (const theme of ['dark', 'light'] as const) { await setTheme(p, theme); await shot(p, `panel-idle-all-${theme}-360`); }
 
   await rowAction(p, ALDER, 'VAT return Q3').click(); // near budget
@@ -291,7 +291,7 @@ test('screenshot matrix for R0 design audit: states x themes x widths, including
 
 test('search has exactly one clear control and form fields add no stray height [KWS-036]', async ({ open }) => {
   const p = await sampleMode(open);
-  await p.getByRole('button', { name: 'All', exact: true }).click();
+  await p.getByRole('button', { name: 'All work', exact: true }).click();
   const search = p.getByRole('searchbox');
   await search.fill('book');
   await expect(p.getByRole('button', { name: 'Clear search' })).toHaveCount(1);

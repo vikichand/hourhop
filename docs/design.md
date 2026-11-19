@@ -1,201 +1,98 @@
 # HourHop: Product Design System
 
-**Version:** 1.2  
-**Updated:** 2026-11-19  
-**Purpose:** Binding, reference-led UI and interaction contract for the HourHop browser extension, with testable anti-pattern replacements.  
-**Scope:** Manifest V3 side panel, toolbar popup, time review, onboarding, settings, and all application states.  
-**Status:** Implemented in 0.1.0 (see Section 10). KWS-nnn labels refer to the project's private requirement list. No live Karbon integration.
+**Version:** 2.0
+**Updated:** 2026-11-19
+**Status:** Implemented in 0.2.0. Owner-approved "control room" direction, replacing the 1.x restrained-utility rules.
+**Scope:** Side panel, toolbar popup, review, settings, first run and every state of the Chrome extension.
 
-## 1. Identity, design intent, and source-of-truth contract
+KWS-nnn labels refer to the project's private requirement list.
 
-**Internal project identity:** `HourHop - Karbon`; **independent brand shown prominently:** `HourHop`; tagline: `Switch work. Track time.` Public listing candidate: `HourHop for Karbon`, **not approved for publication until trademark/affiliation review**. The proposed label identifies compatibility, not ownership or endorsement. Do not copy Karbon's marks, Karbon's product chrome, or any logos from the reference screenshot. Keep all display-name variants in one app-metadata/i18n entry, not separate hardcoded strings in each view. Keep existing `KWS-001..036` IDs despite the name change.
+## 1. Direction
 
-**Intended character:** a disciplined, dark-first professional utility — precise, confident, compact, instantly scannable, quietly premium. Not a consumer-rewards landing page, cyberpunk dashboard, glassmorphism showcase or generic AI-generated SaaS panel. Support a fully finished **light theme**, browser/system default, and high-contrast/forced-colors adaptations. The visually restrained theme must never be used to hide important data or focus indications.
+HourHop is the control room for an accountant's working day. The look is frosted glass floating over a dark room lit by two soft light pools: violet from the top left and warm lamp amber from the bottom right. Big rounded shapes, pill tabs and circular controls make it feel like a modern device panel, not a form.
 
-**Nonnegotiable functional hierarchy:** active target and correct timer state > pause/stop/switch > search and recent/favorite work > clear budget scope > today/review > account/integration status. In an idle state, search and recent work take priority over an empty timer. Fewer decorative pixels, more client/work rows per viewport. The panel is an app workspace, not a mini marketing site.
+The owner supplied two references, kept privately and never bundled:
 
-**Single exact-value owner once code exists:** `src/ui/tokens.css` (primitive → semantic → optional component aliases). Every screen uses the shared token and component system. This document owns visual intent, accessible behavior, selected references, and acceptance rules, but **not a second independently hand-edited palette**. The seed values below become proposals for `tokens.css`, then `tokens.css` becomes authoritative. No duplicate root `DESIGN.md`; if tooling requires it, generate a verified adapter. Use `docs/design.md` as the tracked human-readable contract, and do not copy generic Design Systems 101 into the app.
+- **A dark rewards card:** ink-navy surfaces, violet hairlines, white primary text, and an iridescent lilac, aqua and cream "Activate" button.
+- **A smart-home dashboard:** frosted glass panels over a blurred room, pill room tabs, a thermostat dial with tick marks, device tiles, a monthly chart with one lit bar, a forecast-style day row and a round navigation rail.
 
-## 2. Reference inventory and precise adaptation
+| Reference idea | HourHop translation |
+|---|---|
+| Thermostat dial | The **budget dial**, the hero: thin oversized timer, arc filling toward the work item's time budget |
+| Device tiles with switches | **Work tiles** with a round play or pause button |
+| Room tabs | **Recent / Favorites / All work** pill tabs |
+| Power chart with one lit bar | **This week** chart, today's bar lit |
+| Forecast row | Review's **day strip** |
+| Round nav rail | Rail on the full-tab pages (Review, Settings) |
+| Iridescent "Activate" button | The single **signature gradient** |
 
-### R0 — Owner screenshot (included unchanged)
+Copied logos, brand names, photos, rewards content, clipped corners and the references' text are never used.
 
-- **Asset:** an owner-supplied screenshot of a third-party consumer rewards app. It is kept privately and is never published or bundled.
-- **Observed visual traits:** very dark navy-black/ink backdrop; slightly raised charcoal panels; low-chroma purple hairline/selected boundaries; subtle cyan at one corner; large white primary labels; muted cool-grey secondary labels; isolated CTA; dramatic vertical spacing; soft rounded outer shell; deliberate grouped cards; minimal visible icon families.
-- **Image-specific details we deliberately reject:** third-party trademarks, logos and photos; loyalty metrics, social-proof row, coins and marketing CTA; irregular clipped/notched corners; bright iridescent multicolor button; exaggerated floating tabs; extra-large 30–40px gaps and tall marketing cards; unreadably faint grey-on-dark copy; dramatic glow and gradient overlays. A narrow productivity side panel cannot afford those costs.
-- **Adapt closely:** ink/charcoal layering, calm violet as a *single* accent, typographic contrast, sophisticated restrained shape and section spacing.
-- **Adapt rather than imitate:** one quiet active-session rail and restrained selected-work treatment instead of large ornamental borders; one subtle tonal primary action instead of rainbow gradient.
-- **Do not imitate:** typography, exact layout, branded imagery, UI notches, text content, and rewards mechanics.
+## 2. Rules that keep it from turning into noise
 
-### Other functional research references (URL only; not bundled art)
+1. **Violet means live.** The accent marks only what is running or selected: the running dot, the active tile, the selected pill, today's bar, focus rings.
+2. **One signature gradient, three places.** The lilac, aqua and cream gradient (`--iri`) appears only on the primary action (Pause/Resume, the live play button, primary buttons, the current rail item), the dial's arc, and the active timer card's edge and top sheen. Nowhere else.
+3. **Warnings never look live.** Near budget is amber, over budget is red (the dial arc turns red too). Neither uses violet.
+4. **Numbers are the hero.** Time uses thin (200 weight) tabular numerals; labels are smaller, semibold sentence case. No all-caps eyebrows.
+5. **No fake data.** The dial arc appears only for a real positive time budget. Amount budgets, missing or unavailable budgets, and zero budgets show ticks and a text summary, never an invented percentage. The week chart uses only recorded local sessions.
+6. **Honest status, always in words.** "Saved on this device, not sent to Karbon", "Not sent to Karbon", "Confirmed in Karbon: Not connected". Status uses text plus a dot, never colour alone.
+7. **No ambient motion.** Glows are static. Transitions are 120 to 180 ms on hover and state changes only, and are removed under reduced motion.
 
-| Ref | Source | Useful fact/pattern | Scope and exclusions |
-|---|---|---|---|
-| R1 | [Karbon native timer (2021)](https://karbonhq.com/release-notes/june-14-2021/) | Existing time-tracking vocabulary, work context and timer controls | Borrow terminology only; no pixel-copy or Karbon branding |
-| R2 | [Karbon Time & Budgets](https://karbonhq.com/resources/introducing-time-and-budgets-embedded-in-your-workflow/) | Estimate/actual/remaining information types | Compact factual budget labels, not a mini finance dashboard |
-| R3 | [Karbon Work Dashboards](https://karbonhq.com/resources/karbon-work-dashboards/) | Client and work-item labels, status metadata | Row-level identity, not Kanban tiles |
-| R4 | [Chrome Side Panel API](https://developer.chrome.com/docs/extensions/reference/api/sidePanel) and [Chrome UI](https://developer.chrome.com/docs/extensions/develop/ui) | The side panel stays accessible beside page content; popup is transient | Browser-native window behavior and constrained width |
-| R5 | [Nielsen Norman Group: usability heuristics](https://www.nngroup.com/articles/ten-usability-heuristics/) and [aesthetic minimalism](https://www.nngroup.com/articles/aesthetic-minimalist-design/) | Recognition, system-status visibility, familiar language, only relevant information | Practical interaction standards, not an endorsement of any specific palette |
-| R6 | [W3C WCAG 2.2](https://www.w3.org/TR/WCAG22/) and [Chrome extension accessibility](https://developer.chrome.com/docs/extensions/develop/ui/a11y) | Contrast, focus, keyboard, labels, zoom, accessibility semantics | Verified against rendered UI, not only token pairs |
-| R7 | [Apple typography guidance](https://developer.apple.com/design/human-interface-guidelines/typography) and [design principles](https://developer.apple.com/design/human-interface-guidelines/design-principles/) | Clarity and disciplined type hierarchy | General design evidence, not an instruction to imitate Apple system UI |
+## 3. Tokens
 
-### Reference-to-screen map
+`src/ui/tokens.css` is the only place exact values live: primitives, then semantic tokens resolved per theme with `light-dark()`. Components use semantic tokens only; `tests/ui-guards.test.ts` rejects raw colours, pixel and timing values, font families, notched borders and keyframe animation anywhere else, and requires every gradient in the component layer to be built from tokens.
 
-| Screen / state | R0 aspects to preserve | R0 aspects to avoid | Functional reference and acceptance |
-|---|---|---|---|
-| Side panel — actively tracking | Dark tonal panel, crisp number hierarchy, violet controlled emphasis | Reward card, enormous outer padding, neon framed every section | R1/R4: active client+work name, elapsed, pause/stop and one-action switch all visible at ~360px |
-| Side panel — idle/search | Calm background with obvious focused section | Hero-sized blank artwork or CTA | R3/R5: recent work and search above nonessential messages; 8+ typical rows visible if height permits |
-| Work item results | Dense neutral list, one selected-row accent | Separate rounded marketing card for every result | R3/R5: exact client and work title, current status, optional budget note and correct action |
-| Budget compact/expanded | Discreet progress treatment, two-tone hierarchy | Decorative coin, unlabeled circular chart, fake growth numbers | R2/R6: scope and source explicit: work total vs my allocation, local vs Karbon posted |
-| Popup | Same theme, typographic clarity | Duplicate full dashboard/cards | R4: current timer/status and open-panel action only; popup can close safely |
-| Review & edit | Clear information grouping | Floating curved panels for every entry | R5/R6: genuine dates, separate intervals, notes, edit provenance and sync state |
-| Onboarding, offline, errors, settings | Consistent tonal surfaces and hierarchy | Marketing illustrations, nonfunctional connecting CTA, confetti | R4/R5/R6: transparent permissions, honest manual/demo state, usable recovery |
-
-**Reference R0 is a design influence, not an approved mockup**. The agent must compare actual Chrome captures with these traits and document why differences make the timer easier to use. User silence does not constitute design approval.
-
-## 3. Information architecture and specific layouts
-
-### 3.1 Side panel — canonical main app
-
-Design for **320–600 CSS px**, especially 320, 360, 400 and 480, without assuming a specific Chrome sidebar width or that users can freely enlarge it. At narrow width, one column; no two-column client/work grid. Content can scroll; a compact current-session summary stays reachable while the work list scrolls if measurements permit. Do **not** create a permanent oversized sticky header that leaves only four results visible.
-
-**Tracking active — top-to-bottom:**
-
-1. **Header (compact, single row):** HourHop wordmark, tiny honest connection state (`Local only`, `Connected`, `Stale`), Settings icon with accessible label. If `Karbon` is shown, treat it as a compatibility reference, not an endorsement or confirmed connection.
-2. **Active tracking block:** small `Tracking now` eyebrow paired with running/paused status (text + dot); one-line client name, up to two-line work title, high-legibility tabular `hh:mm:ss` timer; prominent primary `Pause`/`Resume`; secondary `Stop`. On wide panel controls can sit beside time; narrow widths stack as needed. Never hide the target name behind ellipses with no way to reveal it.
-3. **Budget line (conditional):** `Work budget 3h 15m / 8h` and `4h 45m left`, visually small restrained bar. When individual allocation exists, show a separate labeled line `Your allocation`. If source is unknown, don't render a fake progress bar. Toggle `Budget details` for posted/local breakdown or amount-based data.
-4. **Search input:** `Search clients and work items`, keyboard focus as first-class state; search is available without changing current timer; clear X only when query exists.
-5. **Compact filter segmented group:** `Recent`, `Favorites`, `My Work`, `All`; count or status in an unobtrusive line. `My Work` appears only when assignee semantics are trustworthy; absent filters must not pretend to restrict account access.
-6. **Work list:** one row per exact work-item ID; client label muted, work-item title medium weight, status/due/budget supporting line only where known, trailing one-action `Start` or `Switch`. Running row says `Tracking` rather than offering a second start. If a client has multiple entries, they're grouped or independently searchable without duplicating a large client header for every row. No card stacking.
-7. **Today footer / review action:** aggregate tracked time from real local entries, count of sessions, `Review time` action. Distinguish `Recorded locally` from `Confirmed in Karbon`.
-
-**Idle variation:** Empty timer area contracts to a short `No timer running` row with `Choose a work item to start`, leaving Search + Recents immediately visible. Do not show `00:00:00` as the dominant hero in idle mode.
-
-**Switch semantics:** click a different work row => one serialized `Switch(target)` action; old session closes, new begins; UI immediately indicates busy while persistence commits, no speculative success. Same row click does not create duplicate. Keyboard activation works. If switching fails, original active target remains truthful with recovery and no false dual timer.
-
-### 3.2 Toolbar action / popup
-
-The **extension-action behavior must be deliberately chosen**: Chrome `action.onClicked` is not invoked if `default_popup` is defined. Therefore an always-visible popup and direct icon-open-sidepanel cannot both be assumed to work through `onClicked`. Proposed approach: toolbar popup opens, showing live timer + `Open work switcher` control; this calls the supported side panel opening API from a real user gesture. Test on actual Chrome versions. If the interaction proves unreliable, prefer action-click opening the side panel with a separate compact status affordance, and record the chosen trade-off; never ship a broken open-panel button. Reference: [Chrome guidance](https://github.com/GoogleChrome/modern-web-guidance/blob/main/skills/chrome-extensions/references/extensions/side-panel.md).
-
-Popup ~320–360 CSS px, content: brand/status, active client/work item, timer, Pause/Resume, Stop, `Open work switcher`. No independent client catalog, no dense list, no second session controller. It may unmount when losing focus; nothing important relies on popup existence.
-
-### 3.3 Review workspace
-
-Full extension tab or expanded workspace when responsive room is insufficient. No modal for long session-history lists. Sticky date/period filter, daily total separated by source, grouping by client/work item, individual session rows with start/end, duration, notes, pending/confirmed state, and correction actions. Editing opens a scoped accessible form with save, cancel, reason and clear audit. Local CSV/JSON export is a real action with scope explanation, not an icon-only gimmick.
-
-### 3.4 Onboarding, settings, identity, and errors
-
-- **First run:** compact explanation and two honest actions `Try sample data` / `Track locally`; no fake Karbon OAuth/sign-in affordance until approved. Safe, dismissible and replayable.
-- **Settings:** theme/system, time display, privacy, export/delete and actual connection state. No five-step onboarding wizard, decorative usage graphs or unnecessary profile fields.
-- **Disconnected / permission denied:** maintain local tracking; stale Karbon fields must show last-refreshed time if a later supported integration exists. No spinner where a recovery button is possible.
-- **Account/tenant switch:** old firm's names never leak into newly selected identity. Show a clear, non-destructive export/retention choice.
-- **Manual notes:** plain editable text only. Do **not** render a microphone, recording indicator, sparkles, AI rewrite, model/download label or a disabled future-feature button in Phase A. Voice and AI bullet formatting remain deferred.
-
-## 4. Visual foundations — proposed palette and geometry
-
-The design uses neutral density and whitespace for hierarchy. Violet is meaningful only for active/switch/focus/selected states, **not** a decoration on each card. Cyan from R0 may appear as a *tiny optional* secondary accent in a static illustration/logo exploration but must never compete with the running state or create multicolor buttons. The safer baseline is **one accent**. Dark should feel warm-ink/blue-black, not pure `#000` with neon edges. Light mode is a deliberate translation, not automatic inversion.
-
-These are **seed candidates for implementing `src/ui/tokens.css`**, not multiple authoritative palettes:
-
-| Role | Dark draft | Light draft | Usage |
-|---|---|---|---|
-| Canvas | `#111218` | `#F6F7FA` | Whole app background |
-| Raised surface | `#1A1B24` | `#FFFFFF` | Active-session group, menus and review panels |
-| Quiet surface | `#22232E` | `#ECEFF4` | Hover, secondary controls, selected-neutral background |
-| Primary text | `#F2F3F7` | `#1B1C25` | Labels, work title and time |
-| Secondary text | `#A9AFBF` | `#5A6271` | Client label, timestamps, metadata |
-| Active accent | `#A99AF4` | `#5846A9` | Selected/running indication and action; test inverse button text |
-| Strong control boundary | `#72758E` | `#7D8495` | Focus/inputs and essential component borders |
-| Subtle separator | `#45465A` | `#D8DDE6` | Decorative row separators only, never essential focus-only edge |
-| Focus indicator | `#C7BBFF` | `#5141A4` | Clearly visible focus outline plus gap/offset |
-
-**Calculated token-pair spot checks, not a WCAG pass:** Dark primary on raised surface ~15.45:1; dark secondary ~7.81:1; dark accent ~7.03:1. Light primary on white ~16.94:1; light secondary ~6.14:1; light active accent on white ~7.33:1. Strong control boundaries on their nearest raised surface ~3.79:1 dark and ~3.75:1 light. Subtle separators are *not* adequate as the sole indication of an input or selection. Recompute with final token values, hover/disabled/alpha compositing, focus outlines and all statuses. The chosen primary-button fill needs an explicitly tested on-color.
-
-**Typography:** prefer native/system-optimized UI sans stack (`system-ui`, `-apple-system`, `Segoe UI`, sans-serif) with no external font download, no ornamental geometric display face, no artificially spaced uppercase headings. Use 4 consistent weights/roles at most: normal metadata/body, semibold work title, strong numeric timer, section title. Proposed panel roles: 12–13px labels, 13–14px body, 14–16px work titles, 26–34px timer (clamp by width), 15–17px section title. Preserve 1.35–1.5 body line-height, never squish to 11px to make a card fit. `font-variant-numeric: tabular-nums` for duration and amounts. Section titles in sentence case; cap decorative eyebrow uppercase labels to rare status lines.
-
-**Spacing and shape:** base 4px spacing scale, 12–16px panel gutters, ~8–12px related-control gap, ~16–20px between sections, minimum practical clickable target 40–44 CSS px where layout allows (including meaningful icon buttons), 10–14px panel group radius, 8–10px input/button radius; avoid universal 24px pills. One subtle border or elevation for the active timer; a thin separator between work rows; avoid card-in-card-in-card. Radius, spacing, typography and motion live only in tokens after implementation.
-
-**Iconography:** one licensed outline icon family with consistent 1.75–2px apparent stroke at 16–20px size; use named text buttons for Pause/Resume/Stop/Switch because icons alone are ambiguous. Avoid random emoji, 3D glyphs, two unrelated icon packs or vague progress/ring symbols. Real branding/icon assets require owner/licensing review and must not reuse R0 logos.
-
-**Motion:** no ambient background animation. Simple 100–180ms opacity/transform for disclosure and state transitions, tokenized; timer digits update without reflow; no sparkling, bobbing icons, confetti, pulsing gradients or perpetual glow. Respect `prefers-reduced-motion`, tab/panel visibility, and inactivity. A running-state dot can be static. Animation must never mask a state transition or impose recurrent CPU load.
-
-## 5. Shared component contracts (exactly one implementation)
-
-| Shared component | Required variants/behavior | Visual contract and verification |
+| Role | Dark | Light |
 |---|---|---|
-| `AppShell/Header` | panel/popup/review/setting mode; identity + status | Same typography and spacing; truthful connection badges, not colorful decorations |
-| `Button`, `IconButton` | primary, secondary, quiet, danger, disabled, busy | One canonical implementation; visible focus ring and text equivalents; minimum practical hit target |
-| `TimerDisplay` | idle, running, paused, review-needed | Tabular numerals; DOM update isolated from search focus; accessible state announced on changes, not 1Hz chatter |
-| `TrackingPanel` | idle/active/paused/switching/error | One raised surface, crisp target title, controls stable; no tall hero when idle |
-| `WorkRow` | default/hover/focus/running/selected/disabled | Compact list item with client/work/status and one obvious action; stable keyed identity |
-| `SearchCombobox` | query, clear, matches, loading, none | Native input semantics; arrows/Enter/Escape; preserve caret across timer ticks and list refreshes |
-| `FilterGroup` | recent/favorite/my work/all | Selected label visually obvious; no repeated colorful badges |
-| `BudgetSummary` | absent/unavailable/zero/time/amount/near/over | Explicit scope, provenance and remaining, optional actual meter if real data; no empty fake bar |
-| `StatusText` | local/pending/confirmed/uncertain/failed/stale | Both text and symbol, never rely only on color; shared copy vocabulary |
-| `SessionRow/EditForm` | date, interval, correction, notes, audited edit | Dense but readable with clear source/state and keyboard access |
-| `Dialog`, `Toast`, `Tooltip` | positive/negative/cancel, focus/escape | Accessible semantics and focus return; durable errors inline; no toast flood |
-| `Empty/Loading/ErrorState` | distinct demo, empty, denied, stale, offline, fail | Real, specific recovery; short direct copy and no stock art |
+| Room background | `#0D0F1C` | `#EEF0F7` |
+| Glass fill | white 6% | white 62% |
+| Primary text | `#F4F3FA` | `#1A1B2E` |
+| Secondary text | `#B4B3CC` | `#45475F` |
+| Tertiary text | `#8C8BA8` | `#55576F` |
+| Accent (live) | `#A38BFF` | `#4B35D6` |
+| Signature gradient | `#CDBBFF` to `#A9E4F2` to `#F7E6B5` | same |
+| Warning | `#F4C15A` | `#8A5600` |
+| Danger | `#FF8A8A` | `#B3372F` |
 
-Each primitive must be imported across every applicable surface, including first-run and settings; page-specific compositions can use domain metadata but cannot instantiate an alternative Button, Card, Input or Status component. Enforce architecture via AST/import checks and visual state tests, not vague styling instructions.
+- **Type:** Manrope Variable (SIL Open Font License), bundled with the extension from `@fontsource-variable/manrope`; no web font requests.
+- **Shape:** radii 12 / 16 / 22 / 28 px and full pills; 44 px round controls, 64 px primary control, 38 px tile buttons.
+- **Glass:** 22 px backdrop blur, 1 px hairline, inner top highlight.
+- **Theme:** Dark is the default for new installs. Settings offers System, Dark and Light; the choice applies to every surface at once.
 
-## 6. Complete interaction-state quality contract
+## 4. Surfaces
 
-At minimum test:
+**Side panel (canonical workspace), top to bottom:**
 
-- Start idle → running; running → paused; paused → resumed; stop; switch work; same-work select; switching transaction error.
-- Multiple sessions for a target across days, and actual versus local totals without double counting.
-- Search input remains focused with caret position while timer counts; dropdown keyboard navigation and recovery after live list update; row key stable.
-- Long, unusual Unicode client titles and work titles; malicious HTML is text, not DOM. Truncation reveals full value to assistive technology.
-- No client data; no matching search results; no favorites; no budget; budget unknown; budget zero; time/monetary budget; overrun; partial budget permissions.
-- Local save, confirmed external entry, pending and uncertain submission, stale integration, no integration, no network, revoked identity; no fake `Connected`.
-- Onboarding sample versus local mode, session review, CSV/JSON export, multi-interval correction, destructive data deletion confirmation.
-- The **same state** across popup, panel, review and settings; reopen after browser restart, MV3 worker suspension, and theme switch. Side panel and popup can coexist without duplicate timer sources.
-- Theme light/dark/system, minimum widths, 100/150/200% browser zoom, long localization, OS high-contrast/forced colors, visible `:focus-visible`, reduced motion and keyboard-only flows.
+1. Header: brand mark, mode pill (Sample data or Local only), round Settings button.
+2. Timer card. Running or paused: client avatar and names, the budget dial with state, timer and budget line, round Note, Pause or Resume (signature gradient) and Stop, the "Saved on this device, not sent to Karbon" footer with the remaining-budget figure, and a "Budget details" disclosure for the scoped breakdown. Idle: a compact card with a dashed ring, "No timer running" and today's total.
+3. Search pill (`/` focuses it; Escape clears it).
+4. Recent / Favorites / All work pill tabs; a Status filter under All work and while searching.
+5. Items. Recent and Favorites show **tiles**; All work and search results show denser **rows**. Each item has a favorite star and one play button: play on another item switches the timer in one transaction; on the running item it shows pause; on the paused item it resumes. Stop lives only on the timer card. Completed work asks before starting.
+6. Add work (local mode) and Review time.
+7. This week chart.
 
-## 7. Prohibited patterns → required replacements → tests
+**Toolbar popup:** brand and mode pill, a ring with the timer, the live target and budget line, Pause or Resume and Stop, and "Open work switcher", which opens the side panel from the click.
 
-| Disallowed pattern / where | Approved replacement | How to catch it |
-|---|---|---|
-| Rainbow/aurora gradients, purple-to-cyan CTA, shimmering glass across panel | Solid/tonal surfaces, one violet active accent, clear button text | Audit screenshot at 320/360/480 in dark/light and search CSS for unapproved `linear-gradient`, `backdrop-filter` |
-| Floating oversized cards for each client or work item | Compact one-line/two-line rows with subtle separators, active row highlighting | 20-row visual density review and scrolling performance E2E |
-| Beveled/notched borders and glowing outlines copied from R0 | Ordinary consistent 10–14px groups and single meaningful active rail | Compare R0 reference map and all card variants, no arbitrary `clip-path` or border pseudo art |
-| Shadows as the only grouping cue | Rhythm, surface tone, meaningful separators and headings | Check light/dark and forced-color screenshots |
-| Tiny grey labels to emulate mockup atmosphere | Legible tested secondary tokens and text scaling | Rendered-composite contrast >=4.5:1 ordinary text; 200% zoom; inspector/a11y |
-| Decorative numbers, fake percentages, meaningless chart rings | Only true elapsed duration and correctly scoped Karbon/local budget values | Fixture tests for no-budget/unavailable and screenshots with no spurious metrics |
-| Mixed fonts, font experiments, italic fintech headline, extreme letter spacing | Consistent system sans + tabular timer numerals | Font token audit; screenshot comparison across platforms |
-| Generic template headers, AI stars/sparkles, gradients and hero illustrations | Minimal HourHop header and immediate work interaction | Visual inspection that first active/idle view centers real work |
-| Hidden hover-only actions, icons without labels, stripped outlines | Text-primary actions, focus-visible ring, keyboard/assistive labels | Keyboard E2E and axe/a11y checks |
-| Over-designed dashboard in transient toolbar popup | Current time and controls + explicit open-panel button | Real Chrome popup closes/reopens without losing state; click behavior tested |
-| Frequent entire-tree redraw to update seconds | Isolated `TimerDisplay` update and keyed rows | Hold search focus for 60 ticks and assert caret/input unchanged |
-| Blue/green `Synced` after local persistence | `Saved locally`; `Confirmed in Karbon` only after verified receipt | No false-positive sync tests, disconnected fixtures |
-| Duplicate theme/control values per entrypoint | One `tokens.css` and shared component modules | CSS literal allowlist and import-graph CI test |
-| Copying reference logos, branded cards, proprietary images, or the Karbon mark | Original HourHop design / neutral shapes; third-party compatibility in text only if cleared | Asset provenance and store metadata review |
+**Review (full tab):** round nav rail; title, date, mode pill and both exports; the "local time only" notice; a totals card (big thin total, sessions, need review, Confirmed in Karbon: Not connected) with the week's day strip; Hours this week with today's bar lit; Sessions grouped by work item with intervals, notes, tags, Copy for Karbon and Edit.
 
-Exceptions: a **single** original, licensed branded illustration/gradient in a separately approved About/onboarding moment may be considered later if it adds a proven value and passes motion/contrast/performance tests. Do not apply any generic 'no gradients' rule beyond the narrow primary work interface.
+**Settings (full tab):** rail; glass cards for Appearance, Data mode, Karbon connection (status text, no fake switch), Your data (exports, delete with typed confirmation) and About.
 
-## 8. Acceptance tests and evidence
+**First run:** ring, "Switch work. Track time.", two tiles (Track locally, Try sample data) with play buttons, and the plain statement that nothing connects to Karbon.
 
-`KWS-031` and `KWS-036` require actual browser UI evidence after the *last* UI change, not just documentation or a Storybook mock:
+Every surface uses the shared components in `src/ui/components.tsx` (Button, IconButton, RoundControl, PlayButton, Dial, Ring, WeekBars, Rail, FilterGroup, SearchBox, TextField, Select, Dialog, Banner, StatusText, Avatar) and the compositions in `src/ui/parts.tsx`. Only `components.tsx` may render raw form controls or dialogs.
 
-1. **R0 adaptation audit:** compare uploaded original with the side panel (idle, running, paused, switching, compact budget), popup, review and settings. Mark specific adopted/rejected traits. A polished screenshot alone is not sufficient; actions have to work.
-2. **Capture matrix:** real unpacked extension Chrome screenshots at 320, 360, 400 and 480 CSS px (where browser permits), 100%, 150%, 200% zoom; light/dark; long titles, missing budgets, running, paused, selected row, error, offline/stale/uncertain, focus. No hidden controls, overflow, inaccessible scroll or missing interaction on cramped screens.
-3. **A11y:** WCAG 2.2 AA **target**, keyboard-only Start/Pause/Stop/Switch/Search/Review, stable focus after redraw, screen-reader names/states, meaningful hover and reduced motion. Contrast >=4.5:1 for normal text, >=3:1 for large text and applicable non-text controls; inspect the *rendered composite*, including borders over hover/selected surfaces. WCAG 2.4.13 Focus Appearance is **AAA**, but we adopt a clearly visible tokenized ring as a product rule rather than falsely calling it an AA requirement.
-4. **Component/token consistency:** test AST/import boundaries to prohibit duplicated primitives; reject unexplained raw CSS color/font/radius/motion literals outside tokens; audit output bundles for unapproved SVG/fonts/assets.
-5. **Extension-specific runtime:** verify actual side-panel open controls, popup lifecycle, `default_popup` versus `action.onClicked` behavior, worker restart, focus retention on time ticks and rehydration, and actual Chrome action click paths.
-6. **Design critique:** compare before/after user tasks: current work visible without scrolling, work-switch action obvious and achieved in one selection, list density and readability, no deceptive budget or sync status, no visual drift between popup/panel/review/settings. Record mismatches tied to screenshot/build SHA and fix feasible cases.
+## 5. Accessibility and responsiveness
 
-### Evidence and provenance
+- WCAG 2.2 AA is the target and is checked with axe on the rendered pages in both themes: side panel (first run, running, paused, searching), review, the edit dialog and settings.
+- Every icon-only control has an accessible name ("Pause: Alder & Finch Joinery Ltd, VAT return Q3"); round controls also show a visible label.
+- Visible focus rings on everything; focus stays on a tile's button through a switch; dialogs return focus to their opener.
+- Forced colours keep every boundary and the live state visible.
+- Layout works from 320 to 600 CSS px in the panel, and at 150% and 200% browser zoom down to 240 CSS px. The full-tab pages reflow to one column, and the rail turns horizontal, below 640 px.
 
-Research notes and the original reference image are kept in the owner's private project notes and are not part of this repository. Consult Chrome, WCAG and WXT docs anew for version-sensitive implementation details. **Do not claim WCAG conformance or approved design until tested in a real browser.**
+## 6. Verification
 
-## 9. Governance and change control
+`pnpm e2e` drives the built extension in Chromium (and in Google Chrome with `BRANDED=1`) and saves a screenshot matrix to `.tmp/evidence/`: panel states in both themes and four widths, the real toolbar popup, review, settings, zoom and forced colours. A UI change is done only when the guards, the axe scans and this matrix pass and the screenshots have been looked at against Section 2.
 
-App owner approves visual direction and final public name. A design-system change updates the one canonical token/component source, the relevant human-readable rule here, and affected real E2E snapshots/tests in the same change. Any style exception is scoped with reason, a positive alternative and measurable check. New UI surfaces (onboarding, settings, popup, review) are included in the affected-surface inventory before cross-cutting changes. Preserve supplied reference source bytes unchanged; never claim image-perfect reproduction of a competitor concept.
+## 7. Change control
 
-## 10. Implementation record (0.1.0, 2026-11-19)
-
-- **Token authority:** `src/ui/tokens.css` now owns every exact value. The section 4 seeds were adopted unchanged for the shared roles and resolved per theme with CSS `light-dark()` driven by `color-scheme` (so the extension requires Chrome 123+). Theme choice is System, Dark or Light in Settings. `tests/ui-guards.test.ts` rejects raw colour, pixel, timing and font literals outside `tokens.css`, raw controls outside `src/ui/components.tsx`, gradients, `backdrop-filter`, `clip-path` and keyframe animation.
-- **Toolbar action (section 3.2):** the popup design was kept. The `Open work switcher` button calls `chrome.sidePanel.open({ windowId })` synchronously in its click handler, with the window id fetched when the popup mounts. `e2e/timer.spec.ts` opens the real toolbar popup with `chrome.action.openPopup()`, clicks the button with a trusted CDP mouse event and asserts that the side panel target appears and the popup closes. If `chrome.sidePanel` is missing, the button opens the same workspace in a tab.
-- **R0 audit (adopted):** ink and charcoal layering, one violet accent used only for running state, selection, primary action and focus, a single left rail on the active timer and active row, white primary and cool grey secondary text at tested contrast, compact rows with separators, generous but bounded section spacing.
-- **R0 audit (rejected, verified absent):** logos and brand imagery, reward cards and metrics, notched or clipped borders, iridescent or gradient buttons, floating tabs, oversized vertical gaps, glow, and faint low-contrast copy. No R0 file is in the bundle (`e2e/package-audit.spec.ts` compares hashes).
-- **Accepted gap:** 200% zoom inside a 360 px panel leaves 180 CSS px, below the 320 px floor in section 3.1, and overflows horizontally. 150% and 200% zoom at 320 CSS px or wider pass.
+The owner approves visual direction. A design change updates `tokens.css` or the shared components, this document and the affected tests in the same change. New surfaces reuse the shared components; one-off styling is not allowed.

@@ -1,61 +1,63 @@
 /*
- * HourHop design tokens: the single source of exact visual values (docs/design.md §1, §4).
- * Primitive -> semantic. Components and views use semantic tokens only; a test rejects raw colour,
- * pixel and font literals anywhere else. Dark is the default; light is a deliberate translation.
+ * HourHop design tokens: the single source of exact visual values (docs/design.md).
+ * "Control room" direction: frosted glass over an ambient-lit night room, violet for whatever is live,
+ * one iridescent gradient (lilac, aqua, cream) reserved for the primary action, the dial arc and the
+ * active timer card. Components and views use these tokens only; tests/ui-guards.test.ts enforces it.
+ * Colours resolve per theme with light-dark(light, dark) driven by color-scheme. Dark is the default.
  */
+@import '@fontsource-variable/manrope/index.css';
 
 :root {
   /* ---- primitives ---- */
-  --ink-950: #0d0e13;
-  --ink-900: #111218;
-  --ink-850: #1a1b24;
-  --ink-800: #22232e;
-  --ink-750: #2a2b38;
-  --ink-600: #45465a;
-  --ink-500: #72758e;
-  --ink-300: #a9afbf;
-  --ink-100: #f2f3f7;
-  --violet-300: #a99af4;
-  --violet-200: #c7bbff;
-  --violet-900: #2a2643;
-  --paper-50: #f6f7fa;
-  --paper-0: #ffffff;
-  --paper-100: #eceff4;
-  --paper-150: #e3e7ee;
-  --paper-200: #d8dde6;
-  --slate-500: #7d8495;
-  --slate-600: #5a6271;
-  --slate-900: #1b1c25;
-  --violet-600: #5846a9;
-  --violet-650: #4a3a94;
-  --violet-700: #5141a4;
-  --violet-50: #eeeafb;
-  --red-300: #f4a3a3;
-  --red-700: #b42318;
-  --red-950: #3a1c20;
-  --red-50: #fdecea;
-  --amber-300: #e9c46a;
-  --amber-800: #7a4a00;
-  --amber-950: #352b14;
-  --amber-50: #fdf3df;
+  --ink-950: #07080f;
+  --ink-900: #0d0f1c;
+  --ink-850: #14172a;
+  --ink-500: #8c8ba8;
+  --ink-300: #b4b3cc;
+  --ink-100: #f4f3fa;
+  --violet-500: #6e5bd8;
+  --violet-400: #a38bff;
+  --violet-300: #bba9ff;
+  --violet-200: #cdbbff;
+  --violet-700: #4b35d6;
+  --violet-800: #3c28b8;
+  --violet-950: #16112e;
+  --aqua-200: #a9e4f2;
+  --cream-200: #f7e6b5;
+  --amber-400: #e8a24a;
+  --amber-300: #f4c15a;
+  --amber-800: #8a5600;
+  --red-300: #ff8a8a;
+  --red-500: #e0524a;
+  --red-700: #b3372f;
+  --paper-100: #eef0f7;
+  --paper-50: #f7f7fc;
+  --slate-900: #1a1b2e;
+  --slate-600: #45475f;
+  --slate-500: #55576f;
+  --white: #ffffff;
 
   /* ---- type ---- */
-  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-sans: "Manrope Variable", Manrope, system-ui, -apple-system, "Segoe UI", sans-serif;
   --text-xs: 12px;
   --text-sm: 13px;
   --text-md: 14px;
   --text-lg: 16px;
-  --text-xl: 17px;
-  --text-timer: clamp(26px, 9vw, 34px);
+  --text-xl: 18px;
+  --text-2xl: 26px;
+  --text-timer: clamp(34px, 11vw, 44px);
+  --text-stat: clamp(40px, 5vw, 58px);
+  --weight-thin: 200;
+  --weight-light: 300;
   --weight-regular: 400;
   --weight-medium: 500;
   --weight-semibold: 600;
   --weight-bold: 700;
-  --leading: 1.4;
+  --leading: 1.45;
   --leading-tight: 1.2;
-  --tracking-eyebrow: 0.02em;
+  --tracking-tight: -0.02em;
 
-  /* ---- space and shape (4px base) ---- */
+  /* ---- space, shape and size (4px base) ---- */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -63,55 +65,89 @@
   --space-5: 20px;
   --space-6: 24px;
   --space-8: 32px;
-  --radius-sm: 8px;
-  --radius-md: 10px;
-  --radius-lg: 12px;
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 22px;
+  --radius-xl: 28px;
   --radius-full: 999px;
   --border-w: 1px;
   --focus-w: 2px;
-  --focus-offset: 2px;
-  --rail-w: 3px;
-  --control-h: 40px;
-  --control-h-sm: 32px;
-  --icon: 18px;
+  --focus-offset: 3px;
+  --control-h: 44px;
+  --control-h-sm: 36px;
+  --round-sm: 38px;
+  --round: 44px;
+  --round-lg: 64px;
+  --rail-btn: 52px;
+  --rail-w: 84px;
+  --avatar: 38px;
+  --icon: 20px;
+  --icon-sm: 16px;
   --dot: 8px;
-  --meter-h: 4px;
+  --dial-w: 236px;
+  --dial-h: 206px;
+  --ring: 88px;
+  --bar-w: 26px;
+  --bar-w-lg: 34px;
+  --chart-h: 74px;
+  --chart-h-lg: 300px;
+  --tile-min: 132px;
   --popup-w: 340px;
-  --page-max: 880px;
-  --dialog-w: 480px;
+  --page-max: 1360px;
+  --dialog-w: 520px;
   --field-min: 160px;
+  --glass-blur: 22px;
+  --glow-blur: 70px;
+  --halo: 6px;
 
   /* ---- motion ---- */
   --motion-fast: 120ms;
-  --motion-base: 160ms;
+  --motion-base: 180ms;
   --ease: cubic-bezier(0.2, 0, 0, 1);
 
-  /* ---- semantic: light-dark(light, dark), resolved by color-scheme ---- */
-  --bg: light-dark(var(--paper-50), var(--ink-900));
-  --surface: light-dark(var(--paper-0), var(--ink-850));
-  --surface-quiet: light-dark(var(--paper-100), var(--ink-800));
-  --surface-hover: light-dark(var(--paper-150), var(--ink-750));
-  --surface-selected: light-dark(var(--violet-50), var(--violet-900));
+  /* ---- signature gradient (from the owner's reference "Activate" button) ---- */
+  --iri: linear-gradient(118deg, var(--violet-200) 0%, var(--aqua-200) 52%, var(--cream-200) 100%);
+  --iri-edge: linear-gradient(140deg, light-dark(rgb(110 91 216 / 0.55), rgb(205 187 255 / 0.55)), light-dark(rgb(90 180 210 / 0.35), rgb(169 228 242 / 0.25)), light-dark(rgb(30 32 60 / 0.08), rgb(255 255 255 / 0.08)));
+  --on-iri: var(--violet-950);
+
+  /* ---- semantic colours: light-dark(light, dark) ---- */
+  --bg: light-dark(var(--paper-100), var(--ink-900));
+  --bg-deep: light-dark(var(--paper-100), var(--ink-950));
+  --glow-a: light-dark(rgb(140 120 255 / 0.42), rgb(110 91 216 / 0.55));
+  --glow-b: light-dark(rgb(255 180 90 / 0.36), rgb(232 162 74 / 0.36));
+  --glass: light-dark(rgb(255 255 255 / 0.62), rgb(255 255 255 / 0.06));
+  --glass-strong: light-dark(rgb(255 255 255 / 0.78), rgb(255 255 255 / 0.10));
+  --glass-solid: light-dark(var(--white), rgb(255 255 255 / 0.16));
+  --glass-hover: light-dark(rgb(255 255 255 / 0.92), rgb(255 255 255 / 0.13));
+  --card-active: light-dark(rgb(255 255 255 / 0.72), rgb(24 22 48 / 0.55));
+  --line: light-dark(rgb(30 32 60 / 0.12), rgb(255 255 255 / 0.12));
+  --line-strong: light-dark(rgb(30 32 60 / 0.30), rgb(255 255 255 / 0.30));
+  --inner-hi: light-dark(rgb(255 255 255 / 0.9), rgb(255 255 255 / 0.08));
   --text: light-dark(var(--slate-900), var(--ink-100));
   --text-2: light-dark(var(--slate-600), var(--ink-300));
-  --accent: light-dark(var(--violet-600), var(--violet-300));
-  --accent-hover: light-dark(var(--violet-650), var(--violet-200));
-  --on-accent: light-dark(var(--paper-0), var(--ink-950));
-  --border-strong: light-dark(var(--slate-500), var(--ink-500));
-  --border-subtle: light-dark(var(--paper-200), var(--ink-600));
+  --text-3: light-dark(var(--slate-500), var(--ink-500));
+  --accent: light-dark(var(--violet-700), var(--violet-400));
+  --accent-strong: light-dark(var(--violet-800), var(--violet-300));
+  --accent-soft: light-dark(rgb(75 53 214 / 0.10), rgb(163 139 255 / 0.12));
+  --accent-line: light-dark(rgb(75 53 214 / 0.30), rgb(163 139 255 / 0.32));
+  --accent-glow: light-dark(rgb(75 53 214 / 0.30), rgb(163 139 255 / 0.45));
+  --on-accent: light-dark(var(--white), var(--violet-950));
   --focus: light-dark(var(--violet-700), var(--violet-200));
-  --danger: light-dark(var(--red-700), var(--red-300));
-  --danger-surface: light-dark(var(--red-50), var(--red-950));
   --warning: light-dark(var(--amber-800), var(--amber-300));
-  --warning-surface: light-dark(var(--amber-50), var(--amber-950));
-  --meter-track: light-dark(var(--paper-200), var(--ink-750));
-  --backdrop: light-dark(rgb(27 28 37 / 0.35), rgb(5 6 10 / 0.6));
-  --shadow-dialog: 0 12px 32px light-dark(rgb(27 28 37 / 0.18), rgb(0 0 0 / 0.45));
+  --danger: light-dark(var(--red-700), var(--red-300));
+  --danger-arc: light-dark(var(--red-700), var(--red-500));
+  --danger-line: light-dark(rgb(179 55 47 / 0.35), rgb(255 138 138 / 0.40));
+  --track: light-dark(rgb(30 32 60 / 0.10), rgb(255 255 255 / 0.10));
+  --tick: light-dark(rgb(30 32 60 / 0.22), rgb(255 255 255 / 0.18));
+  --knob-off: light-dark(var(--slate-500), var(--ink-500));
+  --backdrop: light-dark(rgb(26 27 46 / 0.30), rgb(5 6 10 / 0.62));
+  --shadow-dialog: 0 24px 60px light-dark(rgb(26 27 46 / 0.22), rgb(0 0 0 / 0.55));
+  --shadow-live: 0 0 0 var(--halo) var(--accent-soft), 0 8px 28px var(--accent-glow);
 }
 
-/* Theme: "system" follows the OS; explicit choices pin it. Dark is the fallback. */
+/* Theme: dark by default; "system" follows the OS; light is a deliberate translation. */
 :root { color-scheme: dark; }
-:root:not([data-theme]) { color-scheme: light dark; }
+:root[data-theme="system"] { color-scheme: light dark; }
 :root[data-theme="light"] { color-scheme: light; }
 :root[data-theme="dark"] { color-scheme: dark; }
 

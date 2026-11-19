@@ -20,7 +20,8 @@ export interface GlobalState {
   profile: ProfileId | null; // null until onboarding picks a mode
   theme: Theme;
 }
-const INITIAL: GlobalState = { key: 'global', activeSessionId: null, revision: 0, profile: null, theme: 'system' };
+// Dark is the default theme (owner decision, 2026-11-19); System and Light are opt-in in Settings.
+const INITIAL: GlobalState = { key: 'global', activeSessionId: null, revision: 0, profile: null, theme: 'dark' };
 
 export interface AuditRecord {
   id?: number;

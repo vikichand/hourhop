@@ -10,6 +10,13 @@ export function clock(ms: number): string {
   return `${p(Math.floor(s / 3600))}:${p(Math.floor((s % 3600) / 60))}:${p(s % 60)}`;
 }
 
+/** H:MM:SS without a leading zero hour, for the large dial readout. */
+export function dialClock(ms: number): string {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${Math.floor(s / 3600)}:${p(Math.floor((s % 3600) / 60))}:${p(s % 60)}`;
+}
+
 export function short(ms: number): string {
   const m = Math.max(0, Math.floor(ms / 60_000));
   const h = Math.floor(m / 60);

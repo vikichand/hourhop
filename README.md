@@ -17,7 +17,7 @@ Requires Chrome 123 or newer. If your organization manages Chrome, Developer mod
 ## Using it with Karbon
 
 1. Add each client and work item once with **Add work** (Track locally mode).
-2. Click **Start** on what you're working on. Clicking another item switches the timer in one step; pause and stop are on the timer card.
+2. Press play on what you're working on. Pressing play on another item switches the timer in one step; pause, resume and stop are on the timer card.
 3. Add a plain-text note to the running session if you like.
 4. At the end of the day, click **Review time**, check the sessions, correct anything with **Edit** (a reason is required and kept in the edit history), then use **Copy for Karbon** and paste into Karbon's time entry form.
 
@@ -31,7 +31,7 @@ Karbon's own timer is separate, so don't run both for the same work. **Export al
 - Plain-text notes, role, task type and billable flag per session.
 - Review by day or week; audited edit, split, discard and "keep as recorded" for flagged sessions (over 8 hours, or the clock moved backwards); per-date totals for sessions that cross midnight.
 - CSV and JSON export, protected against spreadsheet formula injection.
-- Dark, light and system themes. Keyboard: `/` focuses search, arrow keys move through results, Enter starts.
+- A dark-first "control room" look: frosted glass, a budget dial for the running timer, play and pause on every work item, and a this-week chart. Light and system themes are in Settings. Keyboard: `/` focuses search, arrow keys move through results, Enter starts or pauses.
 
 ## Privacy
 
@@ -76,6 +76,10 @@ Design rules are in [docs/design.md](docs/design.md).
 ## Contributing
 
 Bug reports and ideas are welcome as [issues](../../issues). Pull requests are not being accepted at the moment.
+
+## Credits
+
+The Manrope typeface is bundled under the SIL Open Font License 1.1; its licence ships with the extension in `licenses/Manrope-OFL.txt`.
 
 ## License
 

@@ -6,7 +6,9 @@ import { elapsedMs } from '../../domain/timer';
 import type { LocalSession } from '../../domain/types';
 import type { AuditRecord } from '../../storage/ledger';
 import { useApp, useNow, type AppApi } from '../app-state';
-import { AppHeader, Banner, Button, Dialog, EmptyState, FilterGroup, Select, StatusText, TextField } from '../components';
+import { Avatar, Banner, Button, DayButton, Dialog, EmptyState, FilterGroup, Icon, Rail, Select, StatusText, TextField, WeekBars } from '../components';
+import { weekDays } from '../week';
+import { useRailItems } from './nav';
 import { ModeStatus } from '../parts';
 import { downloadExport } from './export-download';
 
@@ -28,6 +30,7 @@ const toLocalInput = (ms: number) => new Date(ms - new Date(ms).getTimezoneOffse
 
 export function Review() {
   const app = useApp();
+  const rail = useRailItems();
   const s = app.snap;
   const hashDate = location.hash.slice(1);
   const [period, setPeriod] = useState<Period>(/^\d{4}-\d{2}-\d{2}$/.test(hashDate) ? 'custom' : 'today');
@@ -52,58 +55,94 @@ export function Review() {
       .sort((a, b) => a[0]!.label.client.localeCompare(b[0]!.label.client) || a[0]!.label.work.localeCompare(b[0]!.label.work));
   }, [sessions]);
 
-  if (!s) return <p class="pad muted" role="status">Loading…</p>;
+  if (!s) return <p class="muted" role="status">Loading…</p>;
   const live = (x: LocalSession) => (s.active?.id === x.id ? s.active : x);
   const total = (sessions ?? []).reduce((t, x) => t + elapsedMs(live(x), now), 0);
   const review = (sessions ?? []).filter((x) => x.status === 'needs-review').length;
 
+  const days = weekDays(s.week, s.active, now);
+  const todayDate = localDate(Date.now(), currentTimeZone());
+  const heading = period === 'today' ? 'Recorded today' : period === 'yesterday' ? 'Recorded yesterday' : period === 'week' ? 'Recorded in the last 7 days' : `Recorded on ${from}`;
+
   return (
-    <div class="shell shell-page">
-      <AppHeader title={`${APP.brand} review`} status={<ModeStatus app={app} />} />
-      {app.error && <Banner tone="error" onDismiss={() => app.setError(null)}>{app.error}</Banner>}
-      {notice && <Banner tone="info" onDismiss={() => setNotice('')}>{notice}</Banner>}
-      <main class="stack pad">
-        <Banner tone="warning">
-          This is local time only. Nothing here has been sent to Karbon. Enter it in Karbon yourself (use "Copy for Karbon"),
-          and check Karbon's own timer is not also recording the same work.
-        </Banner>
-        {!s.state.profile ? <EmptyState title="Choose a data mode first">Open the {APP.brand} side panel to get started.</EmptyState> : <>
-          <div class="row wrap">
-            <FilterGroup<Period> label="Period" value={period} onChange={setPeriod} options={[
-              { id: 'today', label: 'Today' }, { id: 'yesterday', label: 'Yesterday' }, { id: 'week', label: 'Last 7 days' }, { id: 'custom', label: 'Pick a date' },
-            ]} />
-            {period === 'custom' && <div><TextField label="Date" type="date" value={custom} onInput={(e) => setCustom((e.currentTarget as HTMLInputElement).value)} /></div>}
+    <div class="room">
+      <div class="app">
+        <Rail current="review" items={rail} />
+        <main class="main">
+          <div class="topbar">
+            <div class="grow">
+              <h1 class="page-title">Review time</h1>
+              <p class="small muted">{new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+            </div>
+            <ModeStatus app={app} />
+            {s.state.profile && <>
+              <Button size="sm" onClick={async () => setNotice(await downloadExport(s.state.profile!, 'csv'))}><Icon name="export" />Export all as CSV</Button>
+              <Button size="sm" onClick={async () => setNotice(await downloadExport(s.state.profile!, 'json'))}><Icon name="export" />Export all as JSON</Button>
+            </>}
           </div>
-          <div class="totals" aria-label="Totals">
-            <div class="total"><span class="small muted">Recorded locally</span><strong>{short(total)}</strong></div>
-            <div class="total"><span class="small muted">Sessions</span><strong>{sessions?.length ?? 0}</strong></div>
-            <div class="total"><span class="small muted">Need review</span><strong>{review}</strong></div>
-            <div class="total"><span class="small muted">Confirmed in Karbon</span><strong>Not connected</strong></div>
-          </div>
-          <div class="row wrap">
-            <Button size="sm" onClick={async () => setNotice(await downloadExport(s.state.profile!, 'csv'))}>Export all as CSV</Button>
-            <Button size="sm" onClick={async () => setNotice(await downloadExport(s.state.profile!, 'json'))}>Export all as JSON</Button>
-            <span class="xs muted">Exports every session in this data mode, one CSV row per interval.</span>
-          </div>
-          {sessions && !groups.length && <EmptyState title="No time recorded for this period" />}
-          {groups.map((list) => {
-            const first = list[0]!;
-            const sum = list.reduce((t, x) => t + elapsedMs(live(x), now), 0);
-            return (
-              <section class="group" key={first.targetKey} aria-label={`${first.label.client}, ${first.label.work}`}>
-                <div class="group-head">
-                  <div class="grow">
-                    <p class="client-name">{first.label.client}</p>
-                    <h2 class="work-title">{first.label.work}</h2>
+          {app.error && <Banner tone="error" onDismiss={() => app.setError(null)}>{app.error}</Banner>}
+          {notice && <Banner tone="info" onDismiss={() => setNotice('')}>{notice}</Banner>}
+          <Banner tone="warning">
+            This is local time only. Nothing here has been sent to Karbon. Enter it in Karbon yourself (use "Copy for Karbon"),
+            and check Karbon's own timer is not also recording the same work.
+          </Banner>
+          {!s.state.profile ? <EmptyState title="Choose a data mode first">Open the {APP.brand} side panel to get started.</EmptyState> : (
+            <div class="review-grid">
+              <div class="stack" style={{ gap: 'var(--space-5)' }}>
+                <section class="glass card" aria-label="Totals">
+                  <div class="row"><p class="muted grow">{heading}</p><span class="tag">Not sent to Karbon</span></div>
+                  <p class="stat">{short(total)}</p>
+                  <div class="row wrap" style={{ gap: 'var(--space-5)' }}>
+                    <div class="total"><span class="xs muted">Sessions</span><p class="num">{sessions?.length ?? 0}</p></div>
+                    <div class="total"><span class="xs muted">Need review</span><p class={`num${review ? ' warn' : ''}`}>{review}</p></div>
+                    <div class="total"><span class="xs muted">Confirmed in Karbon</span><p>Not connected</p></div>
                   </div>
-                  <strong class="num">{short(sum)}</strong>
+                  <div class="days-strip" role="group" aria-label="This week">
+                    {days.map((d) => (
+                      <DayButton key={d.date} label={`${d.label} ${short(d.ms)}`} pressed={period === 'custom' ? d.date === from : (period === 'today' && d.date === todayDate)}
+                        onClick={() => { if (d.date === todayDate) setPeriod('today'); else { setCustom(d.date); setPeriod('custom'); } }}>
+                        <span class="xs muted">{d.label}</span>
+                        <p class="day-h">{d.ms ? short(d.ms) : '–'}</p>
+                      </DayButton>
+                    ))}
+                  </div>
+                </section>
+                <section class="glass card" aria-label="Hours this week">
+                  <div class="row"><h2 class="card-title grow">Hours this week</h2><span class="small muted num">{short(days.reduce((t, d) => t + d.ms, 0))}</span></div>
+                  <WeekBars large label="Hours recorded locally this week" days={days.map((d) => ({ label: d.label, ms: d.ms, today: d.today, value: short(d.ms) }))} />
+                </section>
+              </div>
+              <section class="glass card" aria-label="Sessions">
+                <div class="row wrap">
+                  <h2 class="card-title grow">Sessions</h2>
+                  <FilterGroup<Period> label="Period" value={period} onChange={setPeriod} options={[
+                    { id: 'today', label: 'Today' }, { id: 'yesterday', label: 'Yesterday' }, { id: 'week', label: 'Last 7 days' }, { id: 'custom', label: 'Pick a date' },
+                  ]} />
                 </div>
-                {list.map((x) => <SessionRow key={x.id} app={app} session={live(x)} now={now} onEdit={() => setEditing(x)} onCopied={setNotice} />)}
+                {period === 'custom' && <TextField label="Date" type="date" value={custom} onInput={(e) => setCustom((e.currentTarget as HTMLInputElement).value)} />}
+                {sessions && !groups.length && <EmptyState title="No time recorded for this period">Pick another day, or start a timer from the side panel.</EmptyState>}
+                {groups.map((list) => {
+                  const first = list[0]!;
+                  const sum = list.reduce((t, x) => t + elapsedMs(live(x), now), 0);
+                  return (
+                    <section class={`group${list.some((x) => x.status === 'needs-review') ? ' needs-review' : ''}`} key={first.targetKey} aria-label={`${first.label.client}, ${first.label.work}`}>
+                      <div class="group-head">
+                        <Avatar name={first.label.client} />
+                        <div class="grow">
+                          <h3 class="work-title">{first.label.work}</h3>
+                          <p class="client-name">{first.label.client}</p>
+                        </div>
+                        <p class="group-total">{short(sum)}</p>
+                      </div>
+                      {list.map((x) => <SessionRow key={x.id} app={app} session={live(x)} now={now} onEdit={() => setEditing(x)} onCopied={setNotice} />)}
+                    </section>
+                  );
+                })}
               </section>
-            );
-          })}
-        </>}
-      </main>
+            </div>
+          )}
+        </main>
+      </div>
       {editing && <EditDialog app={app} session={editing} onClose={() => setEditing(null)} />}
     </div>
   );
@@ -142,7 +181,7 @@ function SessionRow({ app, session: x, now, onEdit, onCopied }: { app: AppApi; s
         <Button size="sm" variant="quiet" onClick={async () => {
           try { await navigator.clipboard.writeText(copyText(x)); onCopied('Copied. Paste it into Karbon\'s time entry form.'); }
           catch { app.setError('Copy failed. Your browser blocked clipboard access.'); }
-        }} aria-label={`Copy for Karbon: ${x.label.work}`}>Copy for Karbon</Button>
+        }} aria-label={`Copy for Karbon: ${x.label.work}`}><Icon name="copy" />Copy for Karbon</Button>
         <Button size="sm" variant="secondary" inert={isActive} onClick={onEdit}
           aria-label={isActive ? 'Stop the timer to edit this session' : `Edit session: ${x.label.work}`}>Edit</Button>
       </div>
