@@ -65,8 +65,8 @@ export function Settings() {
             <section class="glass card span-2" aria-labelledby="t-data">
               <h2 id="t-data" class="card-title">Your data</h2>
               <p class="small muted">
-                Everything is stored in this browser profile only (IndexedDB). {APP.brand} sends no analytics and makes no network
-                requests. Uninstalling the extension or clearing site data deletes it, so export a copy now and then.
+                Everything is stored in this browser profile only (IndexedDB). {APP.brand} sends no analytics, and its only network
+                requests are reads from Karbon's API when you connect Karbon. Uninstalling the extension or clearing site data deletes it, so export a copy now and then.
               </p>
               <div class="row wrap">
                 {profile && <Button size="sm" onClick={async () => setNotice(await downloadExport(profile, 'csv'))}><Icon name="export" />Export CSV</Button>}

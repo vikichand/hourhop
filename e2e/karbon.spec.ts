@@ -6,8 +6,8 @@ import { expect, test } from './fixtures';
 
 const KEYS = { appId: 'test-app-id-0000', accessKey: 'eyJtest.access.key', email: 'pat@firm.example' };
 const WORK = [
-  { WorkItemKey: 'WK1', Title: 'VAT return Q3', ClientKey: 'CK1', ClientName: 'Synthetic Joinery Ltd', ClientType: 'Organization', DueDate: '2026-11-30T00:00:00Z', PrimaryStatus: 'InProgress' },
-  { WorkItemKey: 'WK2', Title: 'Year-end accounts', ClientKey: 'CK2', ClientName: 'Synthetic Dental Group', ClientType: 'Organization', PrimaryStatus: 'ReadyToStart' },
+  { WorkItemKey: 'WK1', Title: 'VAT return Q3', ClientKey: 'CK1', ClientName: 'Synthetic Joinery Ltd', ClientType: 'Organization', DueDate: '2026-11-30T00:00:00Z', PrimaryStatus: 'In Progress' },
+  { WorkItemKey: 'WK2', Title: 'Year-end accounts', ClientKey: 'CK2', ClientName: 'Synthetic Dental Group', ClientType: 'Organization', PrimaryStatus: 'Ready To Start' },
   { WorkItemKey: 'WK3', Title: 'Archived job', ClientKey: 'CK1', ClientName: 'Synthetic Joinery Ltd', ClientType: 'Organization', PrimaryStatus: 'Completed' },
 ];
 
@@ -24,7 +24,11 @@ async function mockKarbon(context: BrowserContext, opts: { status?: number; user
     if (opts.status) return json({ error: 'nope' }, opts.status);
     if (u.pathname === '/v3/TenantSettings') return json({ TenantKey: 'TENANT-TEST' });
     if (u.pathname === '/v3/Users') return json({ value: opts.users ?? [{ Id: 'UK1', Name: 'Pat Example', EmailAddress: KEYS.email }] });
-    if (u.pathname === '/v3/WorkItems') return json({ value: WORK });
+    if (u.pathname === '/v3/WorkItems') {
+      // Like Karbon: the list returns spaced statuses, and a PrimaryStatus filter matches only that form.
+      const st = /PrimaryStatus eq '([^']*)'/.exec(u.searchParams.get('$filter') ?? '')?.[1];
+      return json({ value: st === undefined ? WORK : WORK.filter((w) => w.PrimaryStatus === st) });
+    }
     if (u.pathname === '/v3/EstimateSummaries/WK1') return json({ value: [{ UserKey: 'UK1', EstimateMinutes: 120, ActualMinutes: 45 }, { UserKey: 'UK2', EstimateMinutes: 60, ActualMinutes: 60 }] });
     if (u.pathname.startsWith('/v3/EstimateSummaries/')) return json({ value: [] });
     return json({}, 404);

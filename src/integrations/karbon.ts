@@ -11,6 +11,7 @@ import type { BudgetInfo, BudgetLine, Client, ClientKind, WorkItem, WorkStatus }
 export const KARBON_ORIGIN = 'https://api.karbonhq.com';
 const MAX_PAGES = 20; // 100 items per page; 2,000 assigned work items is far beyond a normal workload
 const MAX_RETRIES = 3;
+const OPEN_STATUSES = ['Planned', 'Ready To Start', 'In Progress', 'Waiting'];
 
 export interface KarbonCreds {
   /** "Application ID" Karbon issues to the registered API application (sent as the Bearer token). */
@@ -37,7 +38,8 @@ export function odataString(s: string): string {
 }
 
 export function validateCreds(c: KarbonCreds): KarbonCreds {
-  const out = { appId: c.appId.trim(), accessKey: c.accessKey.trim(), email: c.email.trim().toLowerCase() };
+  // Email case is kept as typed: Karbon does not document whether its `eq` filter is case-sensitive.
+  const out = { appId: c.appId.trim(), accessKey: c.accessKey.trim(), email: c.email.trim() };
   if (!out.appId || !out.accessKey) throw new KarbonError('invalid-input', 'Enter both the Application ID and the AccessKey.');
   if (/\s/.test(out.appId) || /\s/.test(out.accessKey)) throw new KarbonError('invalid-input', 'The keys should not contain spaces. Paste them again exactly as Karbon shows them.');
   if (!EMAIL_RE.test(out.email)) throw new KarbonError('invalid-input', 'Enter the email address you sign in to Karbon with.');
@@ -111,14 +113,23 @@ export class KarbonClient {
   async findUser(): Promise<{ key: string; name: string; email: string }> {
     const filter = encodeURIComponent(`EmailAddress eq ${odataString(this.creds.email)}`);
     const users = await this.all<{ Id: string; Name?: string; EmailAddress?: string }>(`/v3/Users?$filter=${filter}`);
-    const me = users.find((u) => (u.EmailAddress ?? '').toLowerCase() === this.creds.email);
+    const me = users.find((u) => (u.EmailAddress ?? '').toLowerCase() === this.creds.email.toLowerCase());
     if (!me) throw new KarbonError('email-not-found', `No Karbon user has the email ${this.creds.email}. Use the email you sign in to Karbon with.`);
-    return { key: me.Id, name: me.Name ?? this.creds.email, email: this.creds.email };
+    // Karbon's own spelling of the address, so later work filters match exactly what Karbon stores.
+    return { key: me.Id, name: me.Name ?? this.creds.email, email: me.EmailAddress ?? this.creds.email };
   }
 
+  /**
+   * Open assigned work: one request per open status, as Karbon's guide recommends (PrimaryStatus supports `eq`
+   * only, and only the spaced form matches). Completed work is never fetched, so finished jobs cannot fill MAX_PAGES.
+   */
   async assignedWork(): Promise<KarbonWorkItem[]> {
-    const filter = encodeURIComponent(`AssigneeEmailAddress eq ${odataString(this.creds.email)}`);
-    return this.all<KarbonWorkItem>(`/v3/WorkItems?$filter=${filter}`);
+    const byKey = new Map<string, KarbonWorkItem>();
+    for (const status of OPEN_STATUSES) {
+      const filter = encodeURIComponent(`AssigneeEmailAddress eq ${odataString(this.creds.email)} and PrimaryStatus eq ${odataString(status)}`);
+      for (const w of await this.all<KarbonWorkItem>(`/v3/WorkItems?$filter=${filter}`)) byKey.set(w.WorkItemKey, w);
+    }
+    return [...byKey.values()];
   }
 
   async estimates(workItemKey: string): Promise<KarbonEstimate[]> {
@@ -159,7 +170,8 @@ export function mapAssignedWork(items: KarbonWorkItem[]): { clients: Client[]; w
   const clients = new Map<string, Client>();
   const work: WorkItem[] = [];
   for (const w of items) {
-    const status = STATUS[w.PrimaryStatus ?? ''];
+    // The list endpoint returns "In Progress", single-item endpoints "InProgress"; both map the same.
+    const status = STATUS[(w.PrimaryStatus ?? '').replace(/\s/g, '')];
     const key = w.WorkItemKey, clientKey = w.ClientKey;
     if (!key || !clientKey || !KEY_RE.test(key) || !KEY_RE.test(clientKey) || status === 'Completed') continue;
     const kind = KINDS.includes(w.ClientType as ClientKind) ? (w.ClientType as ClientKind) : 'Organization';

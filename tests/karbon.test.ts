@@ -19,8 +19,8 @@ function fakeKarbon(route: Route) {
 }
 
 const WORK = [
-  { WorkItemKey: 'W1', Title: 'VAT return Q3', ClientKey: 'C1', ClientName: 'Alder Ltd', ClientType: 'Organization', DueDate: '2026-11-30T00:00:00Z', PrimaryStatus: 'InProgress' },
-  { WorkItemKey: 'W2', Title: 'Payroll', ClientKey: 'C2', ClientName: 'Ngozi Okafor', ClientType: 'Contact', PrimaryStatus: 'ReadyToStart' },
+  { WorkItemKey: 'W1', Title: 'VAT return Q3', ClientKey: 'C1', ClientName: 'Alder Ltd', ClientType: 'Organization', DueDate: '2026-11-30T00:00:00Z', PrimaryStatus: 'In Progress' },
+  { WorkItemKey: 'W2', Title: 'Payroll', ClientKey: 'C2', ClientName: 'Ngozi Okafor', ClientType: 'Contact', PrimaryStatus: 'Ready To Start' },
   { WorkItemKey: 'W3', Title: 'Old job', ClientKey: 'C1', ClientName: 'Alder Ltd', ClientType: 'Organization', PrimaryStatus: 'Completed' },
   { WorkItemKey: 'W4', Title: 'Monthly bookkeeping', ClientKey: 'C1', ClientName: 'Alder Ltd', ClientType: 'Organization', PrimaryStatus: 'Planned' },
 ];
@@ -31,7 +31,11 @@ function standardRoutes(extra: Partial<Record<string, Route>> = {}): Route {
     if (r) return r(u);
     if (u.pathname === '/v3/TenantSettings') return { body: { TenantKey: 'TENANT-A' } };
     if (u.pathname === '/v3/Users') return { body: { value: [{ Id: 'U1', Name: 'Pat Doe', EmailAddress: 'Pat@Firm.example' }] } };
-    if (u.pathname === '/v3/WorkItems') return { body: { value: WORK } };
+    if (u.pathname === '/v3/WorkItems') {
+      // Like Karbon: a PrimaryStatus filter matches only the spaced form; anything else silently matches nothing.
+      const st = /PrimaryStatus eq '([^']*)'/.exec(u.searchParams.get('$filter') ?? '')?.[1];
+      return { body: { value: st === undefined ? WORK : WORK.filter((w) => w.PrimaryStatus === st) } };
+    }
     if (u.pathname.startsWith('/v3/EstimateSummaries/')) return { body: { value: [
       { UserKey: 'U1', EstimateMinutes: 120, ActualMinutes: 60 }, { UserKey: 'U2', EstimateMinutes: 60, ActualMinutes: 30 }, { UserKey: 'U1', EstimateMinutes: 0, ActualMinutes: 15 },
     ] } };
@@ -40,13 +44,16 @@ function standardRoutes(extra: Partial<Record<string, Route>> = {}): Route {
 }
 
 describe('Karbon client [read-only, official API v3]', () => {
-  it('sends GET with both auth headers, no cookies, and an escaped, encoded OData filter', async () => {
+  it('sends GET with both auth headers, no cookies, and an escaped, encoded OData filter per open status', async () => {
     const f = fakeKarbon(standardRoutes());
     const k = new KarbonClient({ ...CREDS, email: "o'neil@firm.example" }, f.fetchImpl, f.sleep);
     await k.assignedWork();
     const { url, init } = f.calls[0]!;
     expect(new URL(url).origin).toBe('https://api.karbonhq.com');
-    expect(new URL(url).searchParams.get('$filter')).toBe("AssigneeEmailAddress eq 'o''neil@firm.example'");
+    // Completed work is never requested, so years of finished jobs cannot fill the page limit.
+    expect(f.calls.map((c) => new URL(c.url).searchParams.get('$filter'))).toEqual(
+      ['Planned', 'Ready To Start', 'In Progress', 'Waiting'].map((s) => `AssigneeEmailAddress eq 'o''neil@firm.example' and PrimaryStatus eq '${s}'`),
+    );
     expect(init.method).toBe('GET');
     expect(init.credentials).toBe('omit');
     expect(init.headers).toEqual({ Authorization: 'Bearer app-123', AccessKey: 'eyJ.secret.key', Accept: 'application/json' });
@@ -57,7 +64,7 @@ describe('Karbon client [read-only, official API v3]', () => {
     const pages = fakeKarbon((u) => (u.searchParams.get('$skip') === '100'
       ? { body: { value: [WORK[1]] } }
       : { body: { value: [WORK[0]], '@odata.nextLink': 'https://api.karbonhq.com/v3/WorkItems?$skip=100' } }));
-    expect(await new KarbonClient(CREDS, pages.fetchImpl, pages.sleep).assignedWork()).toHaveLength(2);
+    expect(await new KarbonClient(CREDS, pages.fetchImpl, pages.sleep).assignedWork()).toHaveLength(2); // deduplicated across status requests
     const evil = fakeKarbon(() => ({ body: { value: [WORK[0]], '@odata.nextLink': 'https://attacker.example/steal' } }));
     await expect(new KarbonClient(CREDS, evil.fetchImpl, evil.sleep).assignedWork()).rejects.toMatchObject({ code: 'bad-response' });
     expect(evil.calls).toHaveLength(1);
@@ -92,6 +99,8 @@ describe('mapping and budgets', () => {
   it('keeps open work only, with real Karbon statuses, client kinds and typed keys', () => {
     const { clients, work } = mapAssignedWork(WORK);
     expect(work.map((w) => [w.key, w.status])).toEqual([['W1', 'In Progress'], ['W2', 'Ready To Start'], ['W4', 'Planned']]);
+    // Single-item endpoints use the no-space form; both forms map the same.
+    expect(mapAssignedWork([{ ...WORK[0]!, PrimaryStatus: 'InProgress' }, { ...WORK[1]!, PrimaryStatus: 'ReadyToStart' }]).work.map((w) => w.status)).toEqual(['In Progress', 'Ready To Start']);
     expect(clients.map((c) => [c.key, c.kind])).toEqual([['C1', 'Organization'], ['C2', 'Contact']]);
     expect(work[0]).toMatchObject({ profileId: 'karbon', dueDate: '2026-11-30', budget: { kind: 'unavailable', reason: 'not-loaded' } });
   });
@@ -127,7 +136,9 @@ describe('sync rules', () => {
     expect((await l.getState()).profile).toBe('karbon');
     expect((await l.catalog('karbon')).work.map((w) => w.key)).toEqual(['W1', 'W2', 'W4']);
     const status = await l.karbonStatus();
-    expect(status).toMatchObject({ connected: true, email: 'pat@firm.example', userName: 'Pat Doe', workCount: 3 });
+    // Karbon's own spelling of the address is kept and used for the work filter from then on.
+    expect(status).toMatchObject({ connected: true, email: 'Pat@Firm.example', userName: 'Pat Doe', workCount: 3 });
+    expect(f.calls.filter((c) => c.url.includes('/v3/WorkItems')).every((c) => new URL(c.url).searchParams.get('$filter')!.startsWith("AssigneeEmailAddress eq 'Pat@Firm.example'"))).toBe(true);
     expect(JSON.stringify(status)).not.toMatch(/app-123|secret/);
     expect(f.calls.every((c) => c.init.method === 'GET')).toBe(true);
   });
@@ -151,7 +162,7 @@ describe('sync rules', () => {
     clock.now += 20 * 60_000;
     const results = await Promise.all([refreshKarbon(a!, {}, { ...f, now: () => clock.now }), refreshKarbon(b!, {}, { ...f, now: () => clock.now })]);
     expect(results.sort()).toEqual([false, true]);
-    expect(f.calls.filter((c) => c.url.includes('/v3/WorkItems'))).toHaveLength(1);
+    expect(f.calls.filter((c) => c.url.includes('/v3/WorkItems'))).toHaveLength(4); // one sync: one request per open status
   });
 
   it('a refresh that finishes after disconnect does not bring the work list back', async () => {

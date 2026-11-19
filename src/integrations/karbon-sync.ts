@@ -30,12 +30,12 @@ export async function connectKarbon(ledger: Ledger, input: KarbonCreds, deps: Sy
     throw new KarbonError('invalid-input', `These keys belong to a different Karbon firm. Export and delete the previous firm's ${APP.brand} data in Settings first.`);
   }
   const user = await k.findUser();
-  const { clients, work } = mapAssignedWork(await k.assignedWork());
+  const { clients, work } = mapAssignedWork(await client({ ...creds, email: user.email }, deps).assignedWork());
   const iso = new Date(now()).toISOString();
   // Catalog first, then the connection: if the catalog write fails nothing claims to be connected.
   await ledger.replaceCatalog('karbon', clients, work);
   await ledger.saveKarbonConn({
-    key: 'karbon:conn', ...creds, tenantKey, userKey: user.key, userName: user.name,
+    key: 'karbon:conn', ...creds, email: user.email, tenantKey, userKey: user.key, userName: user.name,
     connectedUtc: iso, lastSyncUtc: iso, syncStartedUtc: null, lastError: null, workCount: work.length,
   });
   let switched = true;
