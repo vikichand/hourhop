@@ -7,4 +7,6 @@ export default defineConfig({
   workers: 1,
   reporter: [['list']],
   outputDir: 'test-results',
+  // Keep a trace for failures so CI runs can be diagnosed from the uploaded artifact.
+  use: { trace: 'retain-on-failure' },
 });

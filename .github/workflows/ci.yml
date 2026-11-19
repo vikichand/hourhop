@@ -32,4 +32,5 @@ jobs:
           path: |
             .output/*.zip
             .tmp/evidence/
+            test-results/
           if-no-files-found: warn
