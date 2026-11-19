@@ -2,6 +2,23 @@
 
 All notable changes to HourHop are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.5.0] - 2026-11-19
+
+### Added
+
+- Automatic pause when the screen locks or the computer sleeps, and optionally after a set idle time, with optional resume when you're back. Every automatic pause or resume adds a short, time-stamped note that Copy for Karbon includes. All of it is under Settings, Timer.
+- An alert when one timer runs past the hours you set (4 by default), and the running time on the toolbar icon.
+- Keyboard shortcuts from anywhere: Alt+Shift+K starts, pauses or resumes the timer; Alt+Shift+T opens it.
+- Presets: one-click role and task type for the running timer.
+- Start now, choose later: start the timer before picking the work item, then choose it when you stop or later in Review.
+- Karbon session check, the first step to connecting through the Karbon login already in your browser: it records how Karbon's app talks to Karbon (addresses with IDs replaced and field names, never values) so the connection can be built. Copy the report from Settings.
+
+### Changed
+
+- HourHop now has a small background helper, runs the Karbon session check on Karbon's web app, and asks for the `storage`, `idle`, `alarms` and `notifications` permissions.
+- With "Pause when the computer sleeps" on (the default), a timer also pauses if Chrome is closed for more than three minutes, at the moment Chrome closed.
+- Sign in with Karbon (official, read-only) moves to a later phase; connecting through the Karbon login comes first.
+
 ## [0.4.0] - 2026-11-19
 
 ### Added

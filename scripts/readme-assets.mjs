@@ -216,11 +216,10 @@ async function karbonShots() {
   await s.getByLabel('Application ID').fill('demo-application-id');
   await s.getByLabel('AccessKey').fill('eyJdemo.access.key');
   await s.getByLabel('Your Karbon email').fill('pat@firm.example');
-  await s.getByRole('button', { name: 'Connect Karbon' }).scrollIntoViewIfNeeded();
-  await s.screenshot({ path: path.join(OUT, 'karbon-connect.png') });
+  await s.screenshot({ path: path.join(OUT, 'karbon-connect.png'), fullPage: true });
   await s.getByRole('button', { name: 'Connect Karbon' }).click();
   await s.getByText('Connected as Pat Example').waitFor();
-  await s.screenshot({ path: path.join(OUT, 'karbon-settings.png') });
+  await s.screenshot({ path: path.join(OUT, 'karbon-settings.png'), fullPage: true });
 
   await p.setViewportSize({ width: 380, height: 1100 });
   await p.reload();
