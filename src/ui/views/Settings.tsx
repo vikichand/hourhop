@@ -6,14 +6,14 @@ import { sampleCatalog } from '../../integrations/sample';
 import { PROVIDERS } from '../../integrations/providers';
 import { getLedger, useApp } from '../app-state';
 import { signInWithKarbon } from '../../integrations/karbon-mcp';
-import { Banner, Button, Dialog, FilterGroup, Icon, Rail, TextField } from '../components';
+import { Banner, Button, Checkbox, Dialog, FilterGroup, Icon, Rail, Select, TextField } from '../components';
 import { useRailItems } from './nav';
 import { connectKarbon, disconnectKarbon, refreshKarbon } from '../../integrations/karbon-sync';
 import type { AppApi } from '../app-state';
 import { ModeStatus } from '../parts';
 import { downloadExport } from './export-download';
 import type { ProfileId } from '../../domain/types';
-import type { Theme } from '../../storage/ledger';
+import type { Preset, Prefs, Theme } from '../../storage/ledger';
 
 export function Settings() {
   const app = useApp();
@@ -63,13 +63,15 @@ export function Settings() {
               <div><Button size="sm" variant="quiet" onClick={() => app.act('onboard', (l) => l.setProfile(null))}>Show the welcome screen again</Button></div>
             </section>
 
+            <TimerCard app={app} />
+
             <KarbonCard app={app} onNotice={setNotice} />
 
-            <section class="glass card span-2" aria-labelledby="t-data">
+            <section class="glass card" aria-labelledby="t-data">
               <h2 id="t-data" class="card-title">Your data</h2>
               <p class="small muted">
                 Everything is stored in this browser profile only (IndexedDB). {APP.brand} sends no analytics, and its only network
-                requests are reads from Karbon's API when you connect Karbon. Uninstalling the extension or clearing site data deletes it, so export a copy now and then.
+                requests are reads from Karbon, once you connect Karbon. Uninstalling the extension or clearing site data deletes it, so export a copy now and then.
               </p>
               <div class="row wrap">
                 {profile && <Button size="sm" onClick={async () => setNotice(await downloadExport(profile, 'csv'))}><Icon name="export" />Export CSV</Button>}
@@ -104,6 +106,60 @@ export function Settings() {
   );
 }
 
+const IDLE = [0, 5, 10, 15, 30].map((m) => ({ value: String(m), label: m ? `After ${m} minutes` : 'Off' }));
+const LONG = [0, 2, 4, 6, 8, 10].map((h) => ({ value: String(h), label: h ? `${h} hours` : 'Off' }));
+
+/** Automatic pause and resume, the long-timer alert, the badge, shortcuts and presets. Each automatic action is optional. */
+function TimerCard({ app }: { app: AppApi }) {
+  // Shown at once and undone if the save fails; otherwise a control flicks back until the snapshot reloads.
+  const [draft, setDraft] = useState<Partial<Prefs>>({});
+  const p = { ...app.snap!.prefs, ...draft };
+  const save = async (patch: Partial<Prefs>) => {
+    setDraft((d) => ({ ...d, ...patch }));
+    const ok = await app.act('prefs', (l) => l.savePrefs(patch));
+    if (!ok) setDraft((d) => { const n = { ...d }; for (const k of Object.keys(patch)) delete n[k as keyof Prefs]; return n; });
+    return ok;
+  };
+  const [label, setLabel] = useState('');
+  const [role, setRole] = useState('');
+  const [task, setTask] = useState('');
+  const add = async () => {
+    if (!label.trim() || (!role.trim() && !task.trim())) { app.setError('Give the preset a name and a role or task type.'); return; }
+    const preset: Preset = { id: crypto.randomUUID(), label: label.trim().slice(0, 40), roleName: role.trim() || undefined, taskTypeName: task.trim() || undefined };
+    if (await save({ presets: [...p.presets, preset].slice(0, 12) })) { setLabel(''); setRole(''); setTask(''); }
+  };
+  return (
+    <section class="glass card" aria-labelledby="t-timer">
+      <h2 id="t-timer" class="card-title">Timer</h2>
+      <p class="small muted">Every automatic action is optional and leaves a short, time-stamped note on the session, such as "Paused: screen locked".</p>
+      <Checkbox label="Pause when the screen locks" checked={p.pauseOnLock} onChange={(v) => save({ pauseOnLock: v })} />
+      <Checkbox label="Pause when the computer sleeps" checked={p.pauseOnSleep} onChange={(v) => save({ pauseOnSleep: v })} />
+      <Select label="Pause when idle (no keyboard or mouse)" value={String(p.idleMinutes)} options={IDLE} onChange={(v) => save({ idleMinutes: Number(v) })} />
+      <Checkbox label="Resume when I'm back (only after an automatic pause)" checked={p.autoResume} onChange={(v) => save({ autoResume: v })} />
+      <Select label="Alert me when one timer runs past" value={String(p.longAlertHours)} options={LONG} onChange={(v) => save({ longAlertHours: Number(v) })} />
+      <Checkbox label="Show the running time on the toolbar icon" checked={p.badge} onChange={(v) => save({ badge: v })} />
+      <p class="xs muted">Shortcuts: Alt+Shift+K starts, pauses or resumes the timer; Alt+Shift+T opens it. Change them at chrome://extensions/shortcuts.</p>
+
+      <h3 class="card-title card-title-sm">Presets</h3>
+      <p class="small muted">One-click role and task type for the running timer, for the stages of one job.</p>
+      {p.presets.length > 0 && (
+        <ul class="stack-tight">
+          {p.presets.map((x) => (
+            <li key={x.id} class="row">
+              <span class="grow small"><strong>{x.label}</strong> <span class="muted">{[x.roleName, x.taskTypeName].filter(Boolean).join(', ')}</span></span>
+              <Button size="sm" variant="quiet" aria-label={`Remove preset ${x.label}`} onClick={() => save({ presets: p.presets.filter((y) => y.id !== x.id) })}>Remove</Button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <TextField label="Preset name" value={label} onInput={(e) => setLabel((e.currentTarget as HTMLInputElement).value)} />
+      <TextField label="Role" value={role} onInput={(e) => setRole((e.currentTarget as HTMLInputElement).value)} />
+      <TextField label="Task type" value={task} onInput={(e) => setTask((e.currentTarget as HTMLInputElement).value)} />
+      <div><Button size="sm" onClick={add}>Add preset</Button></div>
+    </section>
+  );
+}
+
 /**
  * Karbon session check: shows how many of Karbon's own requests the probe has recorded (shapes only) and copies them as
  * a report, so the Karbon-login connection can be built against Karbon's real app.
@@ -111,7 +167,7 @@ export function Settings() {
 function KarbonSessionCheck({ app, onNotice }: { app: AppApi; onNotice: (m: string) => void }) {
   const [entries, setEntries] = useState<Record<string, ProbeEntry>>({});
   useEffect(() => {
-    const load = () => browser.storage.local.get(PROBE_STORAGE_KEY).then((r) => setEntries((r[PROBE_STORAGE_KEY] as Record<string, ProbeEntry> | undefined) ?? {}), () => undefined);
+    const load = () => browser.storage.session.get(PROBE_STORAGE_KEY).then((r) => setEntries((r[PROBE_STORAGE_KEY] as Record<string, ProbeEntry> | undefined) ?? {}), () => undefined);
     void load();
     const onChange = (changes: Record<string, unknown>) => { if (PROBE_STORAGE_KEY in changes) void load(); };
     browser.storage.onChanged.addListener(onChange);
@@ -137,7 +193,7 @@ function KarbonSessionCheck({ app, onNotice }: { app: AppApi; onNotice: (m: stri
       <div class="row wrap">
         <Button size="sm" onClick={() => void browser.tabs.create({ url: 'https://app2.karbonhq.com/' })}>Open Karbon</Button>
         <Button size="sm" variant={list.length ? 'primary' : 'secondary'} inert={!list.length} onClick={copy}><Icon name="copy" />Copy Karbon session report</Button>
-        {list.length > 0 && <Button size="sm" variant="quiet" onClick={() => void browser.storage.local.remove(PROBE_STORAGE_KEY)}>Clear</Button>}
+        {list.length > 0 && <Button size="sm" variant="quiet" onClick={() => void browser.storage.session.remove(PROBE_STORAGE_KEY)}>Clear</Button>}
       </div>
     </div>
   );
@@ -179,7 +235,7 @@ function KarbonCard({ app, onNotice }: { app: AppApi; onNotice: (m: string) => v
         <p class="small muted">
           Sign in on Karbon's own page with read-only access. This version checks the connection and prepares a short report.
         </p>
-        <div><Button variant="primary" busy={app.busy === 'karbon-signin'} onClick={signIn}>Sign in with Karbon</Button></div>
+        <div><Button busy={app.busy === 'karbon-signin'} onClick={signIn}>Sign in with Karbon</Button></div>
         {k.signIn && (
           <div class="stack-tight" role="status">
             <p class="small"><strong>Signed in to Karbon.</strong> Karbon offers {k.signIn.toolCount} {k.signIn.toolCount === 1 ? 'tool' : 'tools'} to {APP.brand}.</p>

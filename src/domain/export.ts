@@ -26,7 +26,7 @@ export function toCsv(sessions: LocalSession[]): string {
     s.segments.forEach((g, i) => {
       const t = s.target;
       rows.push([
-        s.id, s.profileId, t.kind, t.clientKind, t.clientId, t.kind === 'work-item' ? t.workItemId : '',
+        s.id, s.profileId, t.kind, t.kind === 'unassigned' ? '' : t.clientKind, t.kind === 'unassigned' ? '' : t.clientId, t.kind === 'work-item' ? t.workItemId : '',
         s.label.client, s.label.work, s.dateLocal, s.timeZone, i, g.startedAtUtc, g.endedAtUtc, g.elapsedMs,
         (g.elapsedMs / 60_000).toFixed(2), s.status, s.submissionStatus, s.billableIntent,
         s.roleName, s.taskTypeName, s.userNote,
@@ -41,6 +41,10 @@ export function toJson(sessions: LocalSession[], exportedAtUtc: string, appVersi
 }
 
 /** Human-readable text for pasting into Karbon's own time entry form by hand. */
+function localTime(iso: string, timeZone: string): string {
+  return new Intl.DateTimeFormat('en-GB', { timeZone, hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(iso));
+}
+
 export function copyText(s: LocalSession): string {
   const mins = Math.round(s.segments.reduce((a, g) => a + g.elapsedMs, 0) / 60_000);
   const h = Math.floor(mins / 60), m = mins % 60;
@@ -52,5 +56,6 @@ export function copyText(s: LocalSession): string {
     s.roleName ? `Role: ${s.roleName}` : '',
     s.taskTypeName ? `Task type: ${s.taskTypeName}` : '',
     s.userNote ? `Note: ${s.userNote}` : '',
+    s.autoNotes?.length ? `Timer notes: ${s.autoNotes.map((n) => `${localTime(n.atUtc, s.timeZone)} ${n.text}`).join('; ')}` : '',
   ].filter(Boolean).join('\n');
 }

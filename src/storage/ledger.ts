@@ -6,13 +6,32 @@
 import type { ConnectionReport } from '../integrations/karbon-mcp';
 import { assertDiscardable, editTimes, splitAt, type SegmentEdit } from '../domain/edit';
 import { DomainError, pause, resume, start, stop, type NewSessionInput, type Transition } from '../domain/timer';
-import type { Client, LocalSession, ProfileId, WorkItem } from '../domain/types';
+import { targetKey, type Client, type LocalSession, type ProfileId, type Target, type WorkItem } from '../domain/types';
 
 export const DB_NAME = 'hourhop';
 export const DB_VERSION = 1;
 const CHANNEL = 'hourhop-ledger';
 
 export type Theme = 'system' | 'dark' | 'light';
+
+/** A one-click role and task type for the running session (for the stages of one job). */
+export interface Preset { id: string; label: string; roleName?: string; taskTypeName?: string }
+
+/** Timer behaviour. Every automatic action is a setting the user can switch off. */
+export interface Prefs {
+  key: 'prefs';
+  pauseOnLock: boolean;
+  pauseOnSleep: boolean;
+  /** Minutes of no keyboard or mouse use before pausing; 0 is off. */
+  idleMinutes: number;
+  autoResume: boolean;
+  /** Notify when one session has run this many hours; 0 is off. */
+  longAlertHours: number;
+  badge: boolean;
+  presets: Preset[];
+}
+
+export const DEFAULT_PREFS: Prefs = { key: 'prefs', pauseOnLock: true, pauseOnSleep: true, idleMinutes: 0, autoResume: false, longAlertHours: 4, badge: true, presets: [] };
 export interface GlobalState {
   key: 'global';
   /** At most one running/paused session across ALL profiles. */
@@ -72,8 +91,8 @@ const SYNC_LOCK_MS = 2 * 60_000;
 
 export type Command =
   | { opId: string; type: 'start'; input: NewSessionInput }
-  | { opId: string; type: 'pause'; sessionId: string }
-  | { opId: string; type: 'resume'; sessionId: string }
+  | { opId: string; type: 'pause'; sessionId: string; atMs?: number; autoNote?: string }
+  | { opId: string; type: 'resume'; sessionId: string; autoNote?: string }
   | { opId: string; type: 'stop'; sessionId: string };
 
 export interface CommandResult { activeSessionId: string | null; currentId: string | null; revision: number; replayed?: boolean }
@@ -191,9 +210,16 @@ export class Ledger {
           if (cmd.input.target.tenantId !== state.profile) throw new DomainError('INVALID_TARGET', 'That work item belongs to a different data mode.');
           tr = start(active, cmd.input, nowMs);
           break;
-        case 'pause': tr = pause(active, cmd.sessionId, nowMs); break;
+        case 'pause': tr = pause(active, cmd.sessionId, nowMs, cmd.atMs); break;
         case 'resume': tr = resume(active, nowMs, cmd.sessionId); break;
         case 'stop': tr = stop(active, cmd.sessionId, nowMs); break;
+      }
+      // Automatic actions leave a short, time-stamped note on the session they changed.
+      const autoNote = (cmd.type === 'pause' || cmd.type === 'resume') && !tr.noop ? cmd.autoNote : undefined;
+      if (autoNote && tr.current) {
+        const at = cmd.type === 'pause' && tr.current.segments.length ? tr.current.segments[tr.current.segments.length - 1]!.endedAtUtc : new Date(nowMs).toISOString();
+        const withNote = { ...tr.current, autoNotes: [...(tr.current.autoNotes ?? []), { atUtc: at, text: autoNote.slice(0, 120) }] };
+        tr = { ...tr, current: withNote, writes: tr.writes.map((w) => (w.id === withNote.id ? withNote : w)) };
       }
       for (const s of tr.writes) sessions.put(s);
       const revision = state.revision + (tr.noop ? 0 : 1);
@@ -276,6 +302,20 @@ export class Ledger {
 
   async karbonSignIn(): Promise<KarbonSignIn | undefined> {
     return this.tx(['state'], 'readonly', async (t) => (await req(t.objectStore('state').get('karbon:signin'))) as KarbonSignIn | undefined);
+  }
+
+  async prefs(): Promise<Prefs> {
+    return this.tx(['state'], 'readonly', async (t) => ({ ...DEFAULT_PREFS, ...((await req(t.objectStore('state').get('prefs'))) as Partial<Prefs> | undefined) }));
+  }
+
+  async savePrefs(patch: Partial<Omit<Prefs, 'key'>>) {
+    await this.tx(['state'], 'readwrite', async (t) => {
+      const st = t.objectStore('state');
+      const cur = { ...DEFAULT_PREFS, ...((await req(st.get('prefs'))) as Partial<Prefs> | undefined) };
+      st.put({ ...cur, ...patch, key: 'prefs' });
+      const s = await this.readState(t);
+      st.put({ ...s, revision: s.revision + 1 });
+    });
   }
 
   async saveKarbonSignIn(v: KarbonSignIn) {
@@ -422,6 +462,26 @@ export class Ledger {
   // ---------- session details and audited corrections ----------
 
   /** Notes and metadata are user text, not time; they may be edited on any unconfirmed session, including the active one. */
+  /** Gives a "choose later" session its work item. Only unassigned sessions in the same data mode can be assigned. */
+  async assignTarget(id: string, target: Target, label: { client: string; work: string }) {
+    await this.tx(['sessions', 'state', 'work'], 'readwrite', async (t) => {
+      const s = (await req(t.objectStore('sessions').get(id))) as LocalSession | undefined;
+      if (!s) throw new DomainError('CONFLICT', 'That session no longer exists.');
+      if (s.submissionStatus === 'confirmed') throw new DomainError('CONFIRMED_LOCKED', 'Confirmed entries cannot be changed locally.');
+      if (s.status === 'running' || s.status === 'paused') throw new DomainError('CONFLICT', 'Stop the timer before choosing its work item.');
+      if (s.target.kind !== 'unassigned') throw new DomainError('CONFLICT', 'That session already has a work item.');
+      if (target.kind === 'unassigned' || target.tenantId !== s.profileId) throw new DomainError('INVALID_TARGET', 'Choose a work item from the same data mode.');
+      if (target.kind === 'work-item') {
+        const w = (await req(t.objectStore('work').get([s.profileId, target.workItemId]))) as WorkItem | undefined;
+        if (!w || w.clientKey !== target.clientId) throw new DomainError('INVALID_TARGET', 'That work item is not in this data mode.');
+      }
+      const safeLabel = { client: label.client.slice(0, 200), work: label.work.slice(0, 300) };
+      t.objectStore('sessions').put({ ...s, target, targetKey: targetKey(target), label: safeLabel, lastEditedAtUtc: new Date(this.now()).toISOString(), version: s.version + 1 });
+      const st = await this.readState(t);
+      t.objectStore('state').put({ ...st, revision: st.revision + 1 });
+    });
+  }
+
   async updateDetails(id: string, patch: Partial<Pick<LocalSession, 'userNote' | 'roleName' | 'taskTypeName' | 'billableIntent' | 'enteredInKarbonAtUtc'>>) {
     await this.tx(['sessions', 'state'], 'readwrite', async (t) => {
       const s = (await req(t.objectStore('sessions').get(id))) as LocalSession | undefined;

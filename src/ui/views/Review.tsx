@@ -9,7 +9,7 @@ import { useApp, useNow, type AppApi } from '../app-state';
 import { Avatar, Banner, Button, DayButton, Dialog, EmptyState, FilterGroup, Icon, Rail, Select, StatusText, TextField, WeekBars } from '../components';
 import { weekDays } from '../week';
 import { useRailItems } from './nav';
-import { ModeStatus } from '../parts';
+import { AssignDialog, ModeStatus } from '../parts';
 import { downloadExport } from './export-download';
 
 type Period = 'today' | 'yesterday' | 'week' | 'custom';
@@ -37,6 +37,7 @@ export function Review() {
   const [custom, setCustom] = useState(/^\d{4}-\d{2}-\d{2}$/.test(hashDate) ? hashDate : localDate(Date.now(), currentTimeZone()));
   const [sessions, setSessions] = useState<LocalSession[] | null>(null);
   const [editing, setEditing] = useState<LocalSession | null>(null);
+  const [assigning, setAssigning] = useState<LocalSession | null>(null);
   const [notice, setNotice] = useState('');
   const now = useNow(30_000);
   const [from, to] = range(period, custom);
@@ -135,7 +136,7 @@ export function Review() {
                         </div>
                         <p class="group-total">{short(sum)}</p>
                       </div>
-                      {list.map((x) => <SessionRow key={x.id} app={app} session={live(x)} now={now} onEdit={() => setEditing(x)} onCopied={setNotice} />)}
+                      {list.map((x) => <SessionRow key={x.id} app={app} session={live(x)} now={now} onEdit={() => setEditing(x)} onAssign={() => setAssigning(x)} onCopied={setNotice} />)}
                     </section>
                   );
                 })}
@@ -145,11 +146,12 @@ export function Review() {
         </main>
       </div>
       {editing && <EditDialog app={app} session={editing} onClose={() => setEditing(null)} />}
+      <AssignDialog app={app} session={assigning} onClose={() => setAssigning(null)} />
     </div>
   );
 }
 
-function SessionRow({ app, session: x, now, onEdit, onCopied }: { app: AppApi; session: LocalSession; now: number; onEdit: () => void; onCopied: (m: string) => void }) {
+function SessionRow({ app, session: x, now, onEdit, onAssign, onCopied }: { app: AppApi; session: LocalSession; now: number; onEdit: () => void; onAssign: () => void; onCopied: (m: string) => void }) {
   const isActive = x.status === 'running' || x.status === 'paused';
   const count = x.segments.length + (x.status === 'running' ? 1 : 0);
   // Intervals crossing local midnight are attributed to each date (KWS-006), in the zone they were recorded in.
@@ -176,9 +178,11 @@ function SessionRow({ app, session: x, now, onEdit, onCopied }: { app: AppApi; s
         </div>
         {byDate.size > 1 && <p class="xs muted">Spans {byDate.size} dates: {[...byDate].map(([d, ms]) => `${d} ${short(ms)}`).join(' · ')}</p>}
         {x.userNote && <p class="note">{x.userNote}</p>}
+        {!!x.autoNotes?.length && <p class="xs muted">Timer notes: {x.autoNotes.map((n) => `${new Date(n.atUtc).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} ${n.text}`).join("; ")}</p>}
       </div>
       <strong class="num">{short(elapsedMs(x, now))}</strong>
       <div class="row wrap">
+        {x.target.kind === 'unassigned' && !isActive && <Button size="sm" variant="primary" onClick={onAssign}>Choose work</Button>}
         <Button size="sm" variant="quiet" onClick={async () => {
           try { await navigator.clipboard.writeText(copyText(x)); onCopied('Copied. Paste it into Karbon\'s time entry form, then press Mark entered so it is not counted twice.'); }
           catch { app.setError('Copy failed. Your browser blocked clipboard access.'); }

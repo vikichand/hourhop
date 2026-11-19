@@ -2,14 +2,14 @@
 // work tiles and rows with play / pause, the week chart and the mode status. Built only from the
 // primitives in components.tsx.
 
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useMemo, useState } from 'preact/hooks';
 import { budgetHint, budgetView, type BudgetView } from '../domain/budget';
 import { dialClock, LONG_SEGMENT_MS, minutesShort, short } from '../domain/time';
 import { elapsedMs } from '../domain/timer';
-import type { BudgetInfo, LocalSession, WorkItem } from '../domain/types';
+import { UNASSIGNED_LABEL, type BudgetInfo, type LocalSession, type WorkItem } from '../domain/types';
 import { PROVIDERS } from '../integrations/providers';
 import { useNow, type AppApi } from './app-state';
-import { Avatar, Button, Dial, Disclosure, IconButton, PlayButton, Ring, RoundControl, StatusText, TextField, WeekBars } from './components';
+import { Avatar, Button, Dial, Dialog, Disclosure, IconButton, PlayButton, Ring, RoundControl, SearchBox, StatusText, TextField, WeekBars } from './components';
 import type { Row } from './rows';
 import { weekDays } from './week';
 
@@ -102,6 +102,10 @@ export function TrackingPanel({ app }: { app: AppApi }) {
   const a = app.snap?.active ?? null;
   const live = useAnnounce(a);
   const now = useNow(60_000);
+  // Kept here, not in ActiveCard: stopping unmounts the card, and the dialog must outlive it.
+  const [assign, setAssign] = useState<LocalSession | null>(null);
+  const profile = app.snap?.state.profile;
+  const dialog = <AssignDialog app={app} session={assign} onClose={() => setAssign(null)} />;
   if (!a) {
     const today = (app.snap?.today ?? []).reduce((t, x) => t + elapsedMs(x, now), 0);
     return (
@@ -111,14 +115,53 @@ export function TrackingPanel({ app }: { app: AppApi }) {
           <p class="card-title">No timer running</p>
           <p class="small muted">Press play on any work item to start.{today > 0 ? ` Today so far: ${short(today)}.` : ''}</p>
         </div>
+        {profile && (
+          <Button size="sm" busy={app.busy === 'start-later'}
+            onClick={() => app.startTarget({ kind: 'unassigned', tenantId: profile }, UNASSIGNED_LABEL, 'start-later')}>Start now, choose the work later</Button>
+        )}
         {live}
+        {dialog}
       </section>
     );
   }
-  return <ActiveCard app={app} a={a} live={live} />;
+  return <>
+    <ActiveCard app={app} a={a} live={live} onStopped={(s) => s.target.kind === 'unassigned' && setAssign(s)} />
+    {dialog}
+  </>;
 }
 
-function ActiveCard({ app, a, live }: { app: AppApi; a: LocalSession; live: preact.JSX.Element }) {
+/** Picks the work item for a "choose later" session; "Choose later" leaves it for Review. */
+export function AssignDialog({ app, session, onClose }: { app: AppApi; session: LocalSession | null; onClose: () => void }) {
+  const [q, setQ] = useState('');
+  const snap = app.snap;
+  const rows = useMemo(() => {
+    if (!snap) return [];
+    const needle = q.trim().toLowerCase();
+    return snap.work.filter((w) => w.status !== 'Completed').flatMap((w) => {
+      const c = snap.clients.get(w.clientKey);
+      return c && (!needle || w.title.toLowerCase().includes(needle) || c.name.toLowerCase().includes(needle)) ? [{ w, c }] : [];
+    }).slice(0, 30);
+  }, [snap, q]);
+  const pick = async (w: WorkItem, c: { key: string; name: string; kind: 'Contact' | 'Organization' | 'ClientGroup' }) => {
+    if (!session) return;
+    const ok = await app.act('assign', (l) => l.assignTarget(session.id, { kind: 'work-item', tenantId: w.profileId, clientKind: c.kind, clientId: c.key, workItemId: w.key }, { client: c.name, work: w.title }));
+    if (ok) { setQ(''); onClose(); }
+  };
+  return (
+    <Dialog open={!!session} title="Which work was this?" onClose={onClose} actions={<Button variant="quiet" onClick={onClose}>Choose later</Button>}>
+      <p class="small muted">Pick the work item for this time. You can also do it later in Review.</p>
+      <SearchBox label="Search work items" value={q} onInput={setQ} />
+      <ul class="stack-tight">
+        {rows.map(({ w, c }) => (
+          <li key={w.key}><Button block onClick={() => pick(w, c)}>{c.name}: {w.title}</Button></li>
+        ))}
+        {!rows.length && <li class="small muted">No matching work items.</li>}
+      </ul>
+    </Dialog>
+  );
+}
+
+function ActiveCard({ app, a, live, onStopped }: { app: AppApi; a: LocalSession; live: preact.JSX.Element; onStopped: (s: LocalSession) => void }) {
   const [noteOpen, setNoteOpen] = useState(false);
   const [details, setDetails] = useState(false);
   const v = useActiveBudget(app, a);
@@ -145,9 +188,21 @@ function ActiveCard({ app, a, live }: { app: AppApi; a: LocalSession; live: prea
         {running
           ? <RoundControl label="Pause" icon="pause" primary busy={app.busy === 'pause'} onClick={() => app.pauseActive(a.id)} />
           : <RoundControl label="Resume" icon="play" primary busy={app.busy === 'resume'} onClick={() => app.resumeActive(a.id)} />}
-        <RoundControl label="Stop" icon="stop" busy={app.busy === 'stop'} onClick={() => app.stopActive(a.id)} />
+        <RoundControl label="Stop" icon="stop" busy={app.busy === 'stop'} onClick={async () => { if (await app.stopActive(a.id)) onStopped(a); }} />
       </div>
       {noteOpen && <NoteEditor key={a.id} app={app} session={a} onDone={() => setNoteOpen(false)} />}
+      {(app.snap?.prefs.presets.length ?? 0) > 0 && (
+        <div class="row wrap" role="group" aria-label="Presets: role and task type">
+          {app.snap!.prefs.presets.map((x) => {
+            const on = (a.roleName ?? '') === (x.roleName ?? '') && (a.taskTypeName ?? '') === (x.taskTypeName ?? '');
+            return (
+              <Button key={x.id} size="sm" variant={on ? 'primary' : 'secondary'} aria-pressed={on}
+                onClick={() => app.act('preset', (l) => l.updateDetails(a.id, { roleName: x.roleName, taskTypeName: x.taskTypeName }))}>{x.label}</Button>
+            );
+          })}
+        </div>
+      )}
+      {(a.roleName || a.taskTypeName) && <p class="xs muted">{[a.roleName && `Role: ${a.roleName}`, a.taskTypeName && `Task type: ${a.taskTypeName}`].filter(Boolean).join(', ')}</p>}
       <div class="tracking-foot">
         <span>Saved on this device, not sent to Karbon</span>
         {firstLine && <span class={`num ${firstLine.level === 'over' ? 'over' : firstLine.level === 'near' ? 'warn' : ''}`}>{firstLine.remaining}</span>}

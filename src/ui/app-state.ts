@@ -11,7 +11,7 @@ import { currentTimeZone, localDate } from '../domain/time';
 import type { Client, LocalSession, ProfileId, Target, WorkItem } from '../domain/types';
 import { latestOnly } from './latest';
 import { weekDates } from './week';
-import { openLedger, StorageError, type GlobalState, type KarbonStatus, type Ledger, type Theme } from '../storage/ledger';
+import { openLedger, StorageError, type GlobalState, type KarbonStatus, type Ledger, type Prefs, type Theme } from '../storage/ledger';
 import { KarbonError } from '../integrations/karbon';
 
 let ledgerPromise: Promise<Ledger> | null = null;
@@ -38,6 +38,8 @@ export interface Snapshot {
   activeTargetSessions: LocalSession[];
   /** Karbon connection status (never the keys). */
   karbon: KarbonStatus;
+  /** Timer behaviour and presets. */
+  prefs: Prefs;
 }
 
 export function errorMessage(e: unknown): string {
@@ -47,9 +49,9 @@ export function errorMessage(e: unknown): string {
 }
 
 async function load(l: Ledger): Promise<Snapshot> {
-  const [{ state, active }, karbon] = await Promise.all([l.active(), l.karbonStatus()]);
+  const [{ state, active }, karbon, prefs] = await Promise.all([l.active(), l.karbonStatus(), l.prefs()]);
   const profile = state.profile;
-  if (!profile) return { state, active, karbon, clients: new Map(), work: [], favorites: [], recents: [], today: [], week: [], activeTargetSessions: [] };
+  if (!profile) return { state, active, karbon, prefs, clients: new Map(), work: [], favorites: [], recents: [], today: [], week: [], activeTargetSessions: [] };
   const today = localDate(Date.now(), currentTimeZone());
   const monday = weekDates(Date.now())[0]!;
   const [cat, favorites, recents, todays, activeTargetSessions] = await Promise.all([
@@ -57,7 +59,7 @@ async function load(l: Ledger): Promise<Snapshot> {
     active ? l.sessionsForTarget(active.targetKey) : Promise.resolve([]),
   ]);
   return {
-    state, active, karbon, favorites, recents, today: todays.filter((x) => x.dateLocal === today), week: todays, activeTargetSessions,
+    state, active, karbon, prefs, favorites, recents, today: todays.filter((x) => x.dateLocal === today), week: todays, activeTargetSessions,
     clients: new Map(cat.clients.map((c) => [c.key, c])), work: cat.work,
   };
 }

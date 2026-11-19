@@ -13,9 +13,14 @@ export type ProfileId = 'sample' | 'local' | 'karbon';
 
 export type Target =
   | { kind: 'work-item'; tenantId: ProfileId; clientKind: ClientKind; clientId: string; workItemId: string }
-  | { kind: 'client-only'; tenantId: ProfileId; clientKind: ClientKind; clientId: string };
+  | { kind: 'client-only'; tenantId: ProfileId; clientKind: ClientKind; clientId: string }
+  /** "Start now, choose later": time running before the work item is picked; assigned when the timer stops. */
+  | { kind: 'unassigned'; tenantId: ProfileId };
+
+export const UNASSIGNED_LABEL = { client: 'Work not chosen yet', work: 'Choose the work item when you stop' };
 
 export function targetKey(t: Target): string {
+  if (t.kind === 'unassigned') return `u:${t.tenantId}`;
   return t.kind === 'work-item'
     ? `w:${t.tenantId}:${t.clientKind}:${t.clientId}:${t.workItemId}`
     : `c:${t.tenantId}:${t.clientKind}:${t.clientId}`;
@@ -73,6 +78,8 @@ export interface LocalSession {
   runningSinceUtc?: string;
   /** Plain manual text, stored verbatim (KWS-035). */
   userNote?: string;
+  /** Time-stamped notes added by automatic actions ("Paused: screen locked"), kept apart from the user's own note. */
+  autoNotes?: { atUtc: string; text: string }[];
   notesSchema: 1;
   roleName?: string;
   taskTypeName?: string;

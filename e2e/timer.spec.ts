@@ -91,10 +91,10 @@ test('browser restart keeps the running session and derives elapsed time from ti
     expect(secs).toBeGreaterThanOrEqual(2);
     const after = await dumpDb(p);
     expect(after.sessions).toEqual(before.sessions);
-    expect(ctx.serviceWorkers()).toEqual([]);
+    expect(ctx.serviceWorkers().map((w) => new URL(w.url()).pathname)).toEqual(['/background.js']);
     await ctx.close();
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
   }
 });
 

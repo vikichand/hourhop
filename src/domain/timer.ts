@@ -98,10 +98,16 @@ export function start(active: LocalSession | null, input: NewSessionInput, nowMs
   return { writes, activeSessionId: next.id, current: next };
 }
 
-export function pause(active: LocalSession | null, sessionId: string, nowMs: number): Transition {
+/**
+ * `atMs` backdates an automatic pause to when the user actually left (idle start, last sign of life before sleep).
+ * It is clamped between the current interval's start and now, so it can never invent or remove more than that interval.
+ */
+export function pause(active: LocalSession | null, sessionId: string, nowMs: number, atMs?: number): Transition {
   if (!active || active.id !== sessionId) throw new DomainError('CONFLICT', 'That timer is no longer active.');
   if (active.status === 'paused') return { writes: [], activeSessionId: active.id, current: active, noop: true };
-  const s = closeSegment(active, nowMs);
+  const since = active.runningSinceUtc ? Date.parse(active.runningSinceUtc) : nowMs;
+  const at = atMs === undefined ? nowMs : Math.min(nowMs, Math.max(since, atMs));
+  const s = closeSegment(active, at);
   const next = bump({ ...s, status: 'paused' }, new Date(nowMs).toISOString());
   return { writes: [next], activeSessionId: next.id, current: next };
 }

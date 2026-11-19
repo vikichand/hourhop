@@ -1,8 +1,9 @@
 import { defineConfig } from 'wxt';
 import { APP } from './src/app-meta';
 
-// No content scripts, no background worker. The ledger lives in IndexedDB (no permission needed).
-// `sidePanel` plus one host, Karbon's official API, used only after the user connects their firm's keys.
+// Content scripts only on Karbon's web app (the session check); a small background worker for automatic pause, the
+// badge, alerts and shortcuts. The ledger lives in IndexedDB (no permission needed).
+// Hosts: Karbon only (see host_permissions below).
 export default defineConfig({
   srcDir: 'src',
   manifest: {
@@ -12,7 +13,13 @@ export default defineConfig({
     version: APP.version,
     minimum_chrome_version: '123',
     // storage: the Karbon session check's shape records, written by the content script on Karbon's web app.
-    permissions: ['sidePanel', 'storage'],
+    // idle, alarms, notifications: the background helper's pause on lock, sleep or idle, its one-minute tick and the
+    // long-timer alert.
+    permissions: ['sidePanel', 'storage', 'idle', 'alarms', 'notifications'],
+    commands: {
+      _execute_action: { suggested_key: { default: 'Alt+Shift+T' }, description: `Open the ${APP.brand} timer` },
+      'toggle-timer': { suggested_key: { default: 'Alt+Shift+K' }, description: 'Start, pause or resume the timer' },
+    },
     // Karbon only: the official API (firm keys), Karbon's sign-in and MCP servers ("Sign in with Karbon"), and the
     // loopback address Karbon redirects to after sign-in, so the opening page can read that one URL (it is not in
     // connect-src, so nothing can fetch it). No request is made until the user connects or signs in.

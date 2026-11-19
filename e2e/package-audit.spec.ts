@@ -9,17 +9,18 @@ function files(dir: string): string[] {
   return readdirSync(dir).flatMap((f) => (statSync(path.join(dir, f)).isDirectory() ? files(path.join(dir, f)) : [path.join(dir, f)]));
 }
 
-test('manifest requests only sidePanel and Karbon\'s official API host: no content scripts, background worker or remote code', () => {
+test('manifest: only the declared permissions, Karbon hosts, the Karbon session check and the background helper; no remote code', () => {
   const m = JSON.parse(readFileSync(path.join(EXT_PATH, 'manifest.json'), 'utf8'));
   expect(m.manifest_version).toBe(3);
-  expect(m.permissions).toEqual(['sidePanel', 'storage']);
+  expect(m.permissions).toEqual(['sidePanel', 'storage', 'idle', 'alarms', 'notifications']);
+  expect(Object.keys(m.commands)).toEqual(['_execute_action', 'toggle-timer']);
   expect(m.optional_permissions).toBeUndefined();
   expect(m.host_permissions).toEqual(['https://api.karbonhq.com/*', 'https://identity.karbonhq.com/*', 'https://mcp.karbonhq.com/*', 'http://127.0.0.1:53682/*']);
   // The Karbon session check: a page-world probe and its isolated relay, on Karbon's web app only.
   expect(m.content_scripts.map((c: any) => [c.matches, c.world ?? 'ISOLATED', c.run_at])).toEqual([
     [['https://app2.karbonhq.com/*'], 'MAIN', 'document_start'], [['https://app2.karbonhq.com/*'], 'ISOLATED', 'document_start'],
   ]);
-  expect(m.background).toBeUndefined();
+  expect(m.background).toEqual({ service_worker: 'background.js' });
   expect(m.web_accessible_resources).toBeUndefined();
   expect(m.externally_connectable).toBeUndefined();
   expect(m.content_security_policy.extension_pages).toBe("script-src 'self'; object-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; connect-src 'self' https://api.karbonhq.com https://identity.karbonhq.com https://mcp.karbonhq.com");
@@ -48,7 +49,7 @@ test('bundle has no eval, microphone, speech or AI code, no URL but Karbon\'s AP
   }
 });
 
-test('a full session makes no network request outside the extension and registers no service worker', async ({ context, open }) => {
+test('a full session makes no network request outside the extension; the only worker is HourHop\'s own background helper', async ({ context, open }) => {
   const external: string[] = [];
   context.on('request', (r) => { if (!/^(chrome-extension|data|blob):/.test(r.url())) external.push(r.url()); });
   const p = await sampleMode(open);
@@ -61,5 +62,5 @@ test('a full session makes no network request outside the extension and register
   await open('options.html');
   await p.waitForTimeout(500);
   expect(external).toEqual([]);
-  expect(context.serviceWorkers()).toEqual([]);
+  expect(context.serviceWorkers().map((w) => new URL(w.url()).pathname)).toEqual(['/background.js']);
 });
