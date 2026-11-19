@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<!-- README banner. Uses the extension's own design system (copied tokens.css + app.css); rendered frame by
+     frame by scripts/readme-assets.mjs. Only layout lives here; every colour and shape comes from the tokens. -->
+<link rel="stylesheet" href="./app.css">
+<style>
+  html, body { margin: 0; width: 1280px; height: 440px; overflow: hidden; }
+  .room { min-height: 440px; height: 440px; }
+  .room::before, .room::after { position: absolute; }
+  .room::before { width: 900px; height: 420px; left: -260px; top: -160px; }
+  .room::after { width: 760px; height: 380px; right: -200px; bottom: -180px; }
+  .stage { display: grid; grid-template-columns: 1fr 340px 250px; gap: var(--space-5); align-items: center; height: 440px; padding: 0 var(--space-8) 0 56px; }
+  .hero .brand { font-size: 40px; gap: var(--space-3); }
+  .hero .mark { width: 54px; height: 54px; border-radius: 16px; }
+  .hero .mark .icon { width: 30px; height: 30px; }
+  .tagline { font-size: 46px; font-weight: var(--weight-thin); letter-spacing: var(--tracking-tight); line-height: 1.05; margin-top: var(--space-5); }
+  .lede { font-size: 17px; color: var(--text-2); margin-top: var(--space-4); max-width: 440px; }
+  .chips { display: flex; gap: var(--space-2); margin-top: var(--space-5); }
+  .tracking { width: 340px; }
+  .stack-tiles { display: flex; flex-direction: column; gap: var(--space-3); }
+  .tile { min-height: 112px; }
+  .fade { transition: none; }
+</style>
+</head>
+<body>
+<div class="room">
+  <div class="stage">
+    <div class="hero">
+      <div class="brand"><span class="mark"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 17c2.5-6 5.5-9 8-9s4 2 4 4-1.5 4-4 4M14 8c1-2.5 3-4 6-4"/></svg></span>HourHop</div>
+      <p class="tagline">Switch work.<br>Track time.</p>
+      <p class="lede">One timer for all your client work. Hop between jobs in one tap, review every minute, then copy it into Karbon.</p>
+      <div class="chips"><span class="mode"><span class="status-dot" style="background:var(--accent)"></span>Chrome side panel</span><span class="mode">Stays on your device</span><span class="mode">Free to use</span></div>
+    </div>
+
+    <section class="glass tracking is-live">
+      <div class="row">
+        <span class="avatar" id="av"></span>
+        <div class="grow"><p class="client-name" id="client"></p><p class="work-title" id="work"></p></div>
+      </div>
+      <div class="dial">
+        <svg viewBox="0 0 236 206">
+          <defs><linearGradient id="iri" x1="0" y1="1" x2="1" y2="0"><stop offset="0" style="stop-color:var(--violet-200)"/><stop offset=".55" style="stop-color:var(--aqua-200)"/><stop offset="1" style="stop-color:var(--cream-200)"/></linearGradient></defs>
+          <g id="ticks"></g>
+          <path id="track" fill="none" style="stroke:var(--track)" stroke-width="3" stroke-linecap="round"/>
+          <path id="arc" fill="none" style="stroke:url(#iri)" stroke-width="3.5" stroke-linecap="round"/>
+          <circle id="knob" r="6" style="fill:var(--cream-200)"/>
+        </svg>
+        <div class="dial-center">
+          <span class="status status-running"><span class="status-dot"></span>Running</span>
+          <span class="timer" id="time"></span>
+          <span class="dial-sub" id="sub"></span>
+        </div>
+        <div class="dial-ends"><span>0h</span><span id="end"></span></div>
+      </div>
+      <div class="controls">
+        <div class="ctl"><span class="icon-btn"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"><path d="M5 19h4l10-10-4-4L5 15v4ZM13.5 6.5l4 4"/></svg></span>Note</div>
+        <div class="ctl"><span class="icon-btn primary"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"><path d="M8.7 5.5v13M15.3 5.5v13"/></svg></span>Pause</div>
+        <div class="ctl"><span class="icon-btn"><svg class="icon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 6.5h8a1.5 1.5 0 0 1 1.5 1.5v8a1.5 1.5 0 0 1-1.5 1.5H8A1.5 1.5 0 0 1 6.5 16V8A1.5 1.5 0 0 1 8 6.5Z"/></svg></span>Stop</div>
+      </div>
+    </section>
+
+    <ul class="stack-tiles" style="list-style:none;margin:0;padding:0">
+      <li class="glass tile" id="t0"></li>
+      <li class="glass tile" id="t1"></li>
+    </ul>
+  </div>
+</div>
+<script>
+  const JOBS = [
+    { av: 'AF', client: 'Alder & Finch Joinery Ltd', work: 'VAT return Q3', start: 5047, rec: 160, est: 180, end: '3h' },
+    { av: 'BD', client: 'Brightwater Dental Group', work: 'Payroll run November', start: 0, rec: 45, est: 120, end: '2h' },
+  ];
+  const PLAY = '<svg class="icon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.8v12.4a1 1 0 0 0 1.5.86l10-6.2a1 1 0 0 0 0-1.72l-10-6.2A1 1 0 0 0 8 5.8Z"/></svg>';
+  const PAUSE = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"><path d="M8.7 5.5v13M15.3 5.5v13"/></svg>';
+  const cx = 118, cy = 112, r = 88, start = 135, sweep = 270;
+  const pt = (d, rr) => { const a = d * Math.PI / 180; return [cx + rr * Math.cos(a), cy + rr * Math.sin(a)]; };
+  const arc = (a0, a1) => { const [x0, y0] = pt(a0, r), [x1, y1] = pt(a1, r); return `M${x0} ${y0} A${r} ${r} 0 ${a1 - a0 > 180 ? 1 : 0} 1 ${x1} ${y1}`; };
+  document.getElementById('track').setAttribute('d', arc(start, start + sweep));
+  const ticks = document.getElementById('ticks');
+  for (let i = 0; i <= 54; i++) {
+    const deg = start + sweep * i / 54, [x0, y0] = pt(deg, r + 9), [x1, y1] = pt(deg, r + (i % 9 === 0 ? 17 : 13));
+    const l = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    Object.entries({ x1: x0, y1: y0, x2: x1, y2: y1, 'stroke-width': i % 9 === 0 ? 1.6 : 1, 'stroke-linecap': 'round', 'data-deg': deg }).forEach(([k, v]) => l.setAttribute(k, v));
+    ticks.appendChild(l);
+  }
+  const hm = (m) => { const h = Math.floor(m / 60), mm = m % 60; return h ? (mm ? `${h}h ${String(mm).padStart(2, '0')}m` : `${h}h`) : `${mm}m`; };
+  const clock = (s) => `${Math.floor(s / 3600)}:${String(Math.floor(s % 3600 / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+  const tile = (j, live) => `<div class="tile-top"><span class="avatar">${j.av}</span><span class="tbtn${live ? ' live' : ''}">${live ? PAUSE : PLAY}</span></div>
+    <p class="work-title">${j.work}</p><p class="client-name">${j.client}</p>
+    <p class="meta">${live ? '<span class="tag live">Running</span>' : '<span>Ready to start</span>'}</p>`;
+
+  /** t in seconds within the loop. First half tracks job 0, second half job 1: the "hop". */
+  window.render = (t, loop) => {
+    const half = loop / 2, which = t < half ? 0 : 1, j = JOBS[which], el = t - (which ? half : 0);
+    const secs = j.start + Math.floor(el);
+    document.getElementById('av').textContent = j.av;
+    document.getElementById('client').textContent = j.client;
+    document.getElementById('work').textContent = j.work;
+    document.getElementById('time').textContent = clock(secs);
+    document.getElementById('sub').textContent = `${hm(j.rec)} of ${hm(j.est)} budget`;
+    document.getElementById('end').textContent = j.end;
+    // The arc eases in after each hop, then holds at the real budget ratio.
+    const ratio = (j.rec / j.est) * Math.min(1, 1 - Math.pow(1 - Math.min(1, el / 0.9), 3));
+    const end = start + sweep * ratio;
+    document.getElementById('arc').setAttribute('d', arc(start, Math.max(start + 0.01, end)));
+    const [kx, ky] = pt(end, r); const k = document.getElementById('knob'); k.setAttribute('cx', kx); k.setAttribute('cy', ky);
+    for (const l of ticks.children) l.style.stroke = Number(l.dataset.deg) <= end ? 'var(--accent)' : 'var(--tick)';
+    document.getElementById('t0').innerHTML = tile(JOBS[0], which === 0);
+    document.getElementById('t1').innerHTML = tile(JOBS[1], which === 1);
+    document.getElementById('t0').classList.toggle('is-active', which === 0);
+    document.getElementById('t1').classList.toggle('is-active', which === 1);
+    // Brief fade on the card content right after a hop.
+    const fade = Math.min(1, el / 0.25);
+    for (const id of ['client', 'work', 'time', 'sub']) document.getElementById(id).style.opacity = String(0.35 + 0.65 * fade);
+  };
+</script>
+</body>
+</html>

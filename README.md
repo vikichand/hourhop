@@ -1,5 +1,7 @@
 # HourHop
 
+<p align="center"><img src="docs/images/banner.gif" alt="HourHop: a glass timer card with a budget dial counting up on VAT return Q3, then hopping to Payroll run November with one tap" width="100%"></p>
+
 Switch work. Track time. A Chrome extension that keeps one timer running across your client work, so you can hop between clients and work items in one click and review every interval at the end of the day.
 
 HourHop is an independent tool. It is not affiliated with, endorsed by or connected to Karbon or any other practice-management product. It does not read or write Karbon data; you enter the time you capture into Karbon yourself.
@@ -33,6 +35,21 @@ Karbon's own timer is separate, so don't run both for the same work. **Export al
 - CSV and JSON export, protected against spreadsheet formula injection.
 - A dark-first "control room" look: frosted glass, a budget dial for the running timer, play and pause on every work item, and a this-week chart. Light and system themes are in Settings. Keyboard: `/` focuses search, arrow keys move through results, Enter starts or pauses.
 
+## Screenshots
+
+All screenshots are from the real extension with made-up sample data.
+
+<table>
+  <tr>
+    <td align="center" width="33%"><img src="docs/images/side-panel-dark.png" alt="Side panel in dark theme: budget dial timer, recent work tiles with play and pause, and this week's chart"><br><sub>Side panel</sub></td>
+    <td align="center" width="33%"><img src="docs/images/side-panel-light.png" alt="The same side panel in the light theme"><br><sub>Light theme</sub></td>
+    <td align="center" width="33%"><img src="docs/images/popup.png" alt="Toolbar popup with the running timer, Pause, Stop and Open work switcher"><br><sub>Toolbar popup</sub></td>
+  </tr>
+</table>
+
+<p align="center"><img src="docs/images/review.png" alt="Review page: today's total, the week's day strip, hours this week chart and sessions with Copy for Karbon and Edit"><br><sub>Review time</sub></p>
+<p align="center"><img src="docs/images/settings.png" alt="Settings page: appearance, data mode, Karbon connection status, your data and about"><br><sub>Settings</sub></p>
+
 ## Privacy
 
 Everything stays in your browser profile (IndexedDB). HourHop makes no network requests, has no analytics and asks for one permission, `sidePanel`. Uninstalling the extension or clearing site data deletes your data, so export first.
@@ -55,6 +72,7 @@ pnpm zip          # installable zip in .output/
 | `pnpm e2e` | Playwright against the built extension in a fresh temporary profile (run `pnpm build` first) |
 | `pnpm check` | All of the above in order |
 | `node scripts/make-icons.mjs` | Re-render toolbar icons from `public/icon/icon.svg` |
+| `node scripts/readme-assets.mjs` | Regenerate the README banner GIF and screenshots in `docs/images/` from the built extension (needs ffmpeg; run `pnpm build` first) |
 
 E2E tests use Playwright's bundled Chromium by default, a throwaway profile per test and synthetic data only. Install it once with `pnpm exec playwright install chromium`. Set `BRANDED=1` to run them on your installed Google Chrome instead; branded Chrome ignores `--load-extension`, so the fixture loads the build through the DevTools `Extensions.loadUnpacked` command. Set `HEADED=1` to watch. Screenshots, accessibility results and timings go to `.tmp/evidence/` (override with `EVIDENCE_DIR`).
 
