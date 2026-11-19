@@ -12,10 +12,13 @@ function files(dir: string): string[] {
 test('manifest requests only sidePanel and Karbon\'s official API host: no content scripts, background worker or remote code', () => {
   const m = JSON.parse(readFileSync(path.join(EXT_PATH, 'manifest.json'), 'utf8'));
   expect(m.manifest_version).toBe(3);
-  expect(m.permissions).toEqual(['sidePanel']);
+  expect(m.permissions).toEqual(['sidePanel', 'storage']);
   expect(m.optional_permissions).toBeUndefined();
   expect(m.host_permissions).toEqual(['https://api.karbonhq.com/*', 'https://identity.karbonhq.com/*', 'https://mcp.karbonhq.com/*', 'http://127.0.0.1:53682/*']);
-  expect(m.content_scripts).toBeUndefined();
+  // The Karbon session check: a page-world probe and its isolated relay, on Karbon's web app only.
+  expect(m.content_scripts.map((c: any) => [c.matches, c.world ?? 'ISOLATED', c.run_at])).toEqual([
+    [['https://app2.karbonhq.com/*'], 'MAIN', 'document_start'], [['https://app2.karbonhq.com/*'], 'ISOLATED', 'document_start'],
+  ]);
   expect(m.background).toBeUndefined();
   expect(m.web_accessible_resources).toBeUndefined();
   expect(m.externally_connectable).toBeUndefined();
@@ -28,9 +31,9 @@ test('bundle has no eval, microphone, speech or AI code, no URL but Karbon\'s AP
   const all = files(EXT_PATH);
   const js = all.filter((f) => /\.(js|html)$/.test(f)).map((f) => [f, readFileSync(f, 'utf8')] as const);
   const forbidden = [
-    /XMLHttpRequest/, /new WebSocket/, /sendBeacon/, /EventSource/, /\beval\s*\(/, /new Function\s*\(/,
+    /new XMLHttpRequest/, /new WebSocket/, /sendBeacon/, /EventSource/, /\beval\s*\(/, /new Function\s*\(/,
     /getUserMedia/, /SpeechRecognition/, /webkitSpeech/, /MediaRecorder/, /\bLanguageModel\b/, /\bai\.(languageModel|summarizer)/,
-    /https?:\/\/(?!www\.w3\.org|(api|identity|mcp)\.karbonhq\.com\b|127\.0\.0\.1:53682\/callback\b)/, /app\d*\.karbonhq\.com/i,
+    /https?:\/\/(?!www\.w3\.org|(api|identity|mcp|app2)\.karbonhq\.com\b|127\.0\.0\.1:53682\/callback\b)/,
   ];
   for (const [f, src] of js) for (const re of forbidden) expect(re.test(src), `${path.basename(f)} matches ${re}`).toBe(false);
   // fetch() exists only in chunks that hold a Karbon client, alongside its pinned origins.

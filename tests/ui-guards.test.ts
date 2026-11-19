@@ -50,7 +50,9 @@ describe('Phase A scope [KWS-035, KWS-017]', () => {
   it('ships no microphone, speech, AI, cookie or Karbon-session code; only the Karbon client may use the network', () => {
     for (const { f, text } of src.filter(({ f }) => /\.(tsx?|html)$/.test(f))) {
       const c = code(text);
-      expect(c, f).not.toMatch(/getUserMedia|SpeechRecognition|webkitSpeech|MediaRecorder|LanguageModel|XMLHttpRequest|WebSocket|sendBeacon|document\.cookie|chrome\.cookies|innerHTML|dangerouslySetInnerHTML/);
+      expect(c, f).not.toMatch(/getUserMedia|SpeechRecognition|webkitSpeech|MediaRecorder|LanguageModel|WebSocket|sendBeacon|document\.cookie|chrome\.cookies|innerHTML|dangerouslySetInnerHTML/);
+      // XMLHttpRequest only in the Karbon session probe, which wraps Karbon's own requests and never sends one.
+      if (!f.endsWith('src/entrypoints/karbon-probe.content.ts')) expect(c, f).not.toMatch(/XMLHttpRequest/);
       if (!/src\/integrations\/karbon(-mcp)?\.ts$/.test(f)) expect(c, f).not.toMatch(/\bfetch\(/);
     }
   });
@@ -76,6 +78,16 @@ describe('Phase A scope [KWS-035, KWS-017]', () => {
     expect(m).toContain("export const SCOPE = 'mcp:public:read';");
     expect(m).not.toMatch(/mcp:public:write|data:write|publicapi|cookie_exchange|offline_access|tools\/call/);
     expect(m).not.toMatch(/method: '(GET|PUT|PATCH|DELETE)'/);
+  });
+
+  it('the Karbon session probe and relay only observe: no request of their own, no storage of values', () => {
+    for (const name of ['karbon-probe.content.ts', 'karbon-relay.content.ts']) {
+      const t = code(src.find(({ f }) => f.endsWith(`src/entrypoints/${name}`))!.text);
+      expect(t, name).not.toMatch(/\bfetch\(|new XMLHttpRequest|sendBeacon|navigator\.|document\.cookie|localStorage|indexedDB|runtime\.sendMessage/);
+    }
+    const probe = code(src.find(({ f }) => f.endsWith('src/entrypoints/karbon-probe.content.ts'))!.text);
+    expect(probe).toContain('await original.call(this, input, init)'); // Karbon's request runs unchanged
+    expect(probe).toContain('res.clone()'); // and only a copy of the reply is read
   });
 
   it('never marks anything confirmed in Karbon: no code path sets confirmed status or an official entry id', () => {

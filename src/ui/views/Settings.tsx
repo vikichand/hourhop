@@ -1,4 +1,6 @@
-import { useState } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
+import { browser } from 'wxt/browser';
+import { PROBE_STORAGE_KEY, type ProbeEntry } from '../../integrations/karbon-probe';
 import { APP } from '../../app-meta';
 import { sampleCatalog } from '../../integrations/sample';
 import { PROVIDERS } from '../../integrations/providers';
@@ -102,6 +104,45 @@ export function Settings() {
   );
 }
 
+/**
+ * Karbon session check: shows how many of Karbon's own requests the probe has recorded (shapes only) and copies them as
+ * a report, so the Karbon-login connection can be built against Karbon's real app.
+ */
+function KarbonSessionCheck({ app, onNotice }: { app: AppApi; onNotice: (m: string) => void }) {
+  const [entries, setEntries] = useState<Record<string, ProbeEntry>>({});
+  useEffect(() => {
+    const load = () => browser.storage.local.get(PROBE_STORAGE_KEY).then((r) => setEntries((r[PROBE_STORAGE_KEY] as Record<string, ProbeEntry> | undefined) ?? {}), () => undefined);
+    void load();
+    const onChange = (changes: Record<string, unknown>) => { if (PROBE_STORAGE_KEY in changes) void load(); };
+    browser.storage.onChanged.addListener(onChange);
+    return () => browser.storage.onChanged.removeListener(onChange);
+  }, []);
+  const list = Object.values(entries);
+  const timer = list.some((e) => /stopwatch|timer/i.test(e.path));
+  const copy = async () => {
+    const report = { generatedUtc: new Date().toISOString(), app: `${APP.brand} ${APP.version}`, kind: 'karbon-session-check', entries: list.sort((a, b) => a.path.localeCompare(b.path)) };
+    try { await navigator.clipboard.writeText(JSON.stringify(report, null, 2)); onNotice("Karbon session report copied. It lists how Karbon's app talks to Karbon: addresses and field names, with no values or client data."); }
+    catch { app.setError('Copy failed. Your browser blocked clipboard access.'); }
+  };
+  return (
+    <div class="stack-tight">
+      <p class="small muted">
+        {APP.brand} connects through the Karbon login already in this browser. One-time setup check: open Karbon here, open any work
+        item, start and stop Karbon's own timer once, then copy the report and send it to whoever maintains {APP.brand}. It records
+        addresses and field names only, never values, names or amounts.
+      </p>
+      <p class="small" role="status">
+        {list.length ? <><strong>{list.length} Karbon {list.length === 1 ? 'request' : 'requests'} recorded.</strong> {timer ? "Karbon's timer was seen." : "Karbon's timer not seen yet: start and stop it once."}</> : 'Nothing recorded yet. Open Karbon in this browser.'}
+      </p>
+      <div class="row wrap">
+        <Button size="sm" onClick={() => void browser.tabs.create({ url: 'https://app2.karbonhq.com/' })}>Open Karbon</Button>
+        <Button size="sm" variant={list.length ? 'primary' : 'secondary'} inert={!list.length} onClick={copy}><Icon name="copy" />Copy Karbon session report</Button>
+        {list.length > 0 && <Button size="sm" variant="quiet" onClick={() => void browser.storage.local.remove(PROBE_STORAGE_KEY)}>Clear</Button>}
+      </div>
+    </div>
+  );
+}
+
 /** Connect, refresh and disconnect the firm's Karbon account. Keys go straight to the ledger; the UI never reads them back. */
 function KarbonCard({ app, onNotice }: { app: AppApi; onNotice: (m: string) => void }) {
   const k = app.snap!.karbon;
@@ -133,9 +174,10 @@ function KarbonCard({ app, onNotice }: { app: AppApi; onNotice: (m: string) => v
     return (
       <section class="glass card" aria-labelledby="t-karbon">
         <h2 id="t-karbon" class="card-title">Connect Karbon</h2>
+        <KarbonSessionCheck app={app} onNotice={onNotice} />
+        <h3 class="card-title card-title-sm">Official Karbon sign-in (beta)</h3>
         <p class="small muted">
-          Sign in with your usual Karbon login on Karbon's own page. No keys or setup needed, and {APP.brand} asks Karbon for read-only
-          access. Beta: this version checks the connection and prepares a short report; your work list arrives in the next update.
+          Sign in on Karbon's own page with read-only access. This version checks the connection and prepares a short report.
         </p>
         <div><Button variant="primary" busy={app.busy === 'karbon-signin'} onClick={signIn}>Sign in with Karbon</Button></div>
         {k.signIn && (

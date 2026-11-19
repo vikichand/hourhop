@@ -11,7 +11,8 @@ export default defineConfig({
     description: APP.description,
     version: APP.version,
     minimum_chrome_version: '123',
-    permissions: ['sidePanel'],
+    // storage: the Karbon session check's shape records, written by the content script on Karbon's web app.
+    permissions: ['sidePanel', 'storage'],
     // Karbon only: the official API (firm keys), Karbon's sign-in and MCP servers ("Sign in with Karbon"), and the
     // loopback address Karbon redirects to after sign-in, so the opening page can read that one URL (it is not in
     // connect-src, so nothing can fetch it). No request is made until the user connects or signs in.

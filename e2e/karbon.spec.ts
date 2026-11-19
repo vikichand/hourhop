@@ -185,3 +185,43 @@ test('Sign in with Karbon: Karbon\'s login opens in a window, read-only scope, a
   expect(JSON.stringify(stored)).not.toContain('tok-e2e');
   expect(await spills(s)).toEqual([]);
 });
+
+test('Karbon session check: observes Karbon\'s app without changing it and stores shapes only, no values or tokens', async ({ context, open }) => {
+  // A simulated Karbon web app that calls a simulated regional Karbon API with fetch and XHR, like the real app.
+  const cors = { 'access-control-allow-origin': 'https://app2.karbonhq.com', 'access-control-allow-headers': 'authorization, content-type', 'access-control-allow-methods': 'GET, POST' };
+  await context.route('https://us3.karbonhq.com/**', (route) => {
+    const r = route.request();
+    if (r.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
+    const body = r.url().includes('/stopwatches/')
+      ? { StopwatchKey: 'Sw9k8j7h6', WorkItemTitle: 'VAT return Q3', ElapsedSeconds: 5400, StartedAt: '2026-11-19T09:00:00Z' }
+      : { value: [{ WorkItemKey: 'Wk1a2b3c4', Title: 'Year-end accounts', ClientName: 'Synthetic Dental Group' }] };
+    return route.fulfill({ status: 200, contentType: 'application/json', headers: cors, body: JSON.stringify(body) });
+  });
+  await context.route('https://app2.karbonhq.com/**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: `<!doctype html><title>Karbon</title><script>
+    fetch('https://us3.karbonhq.com/time/api/T1x2y3z4/stopwatches/U9k8j7h6', { method: 'POST', headers: { Authorization: 'Bearer secret.jwt.token', 'Content-Type': 'application/json' }, body: JSON.stringify({ WorkItemKey: 'Wk1a2b3c4', Note: 'private note' }) })
+      .then((r) => r.json()).then((j) => { document.body.dataset.timer = j.WorkItemTitle; });
+    const x = new XMLHttpRequest(); x.open('GET', 'https://us3.karbonhq.com/work/api/T1x2y3z4/workItems?$filter=x'); x.setRequestHeader('Authorization', 'Bearer secret.jwt.token');
+    x.onload = () => { document.body.dataset.work = JSON.parse(x.responseText).value[0].Title; }; x.send();
+  </script>` }));
+
+  const k = await context.newPage();
+  await k.goto('https://app2.karbonhq.com/work/my-work');
+  // Karbon's own page got its data, untouched.
+  await expect(k.locator('body')).toHaveAttribute('data-timer', 'VAT return Q3');
+  await expect(k.locator('body')).toHaveAttribute('data-work', 'Year-end accounts');
+
+  const s = await open('options.html');
+  await s.setViewportSize({ width: 1100, height: 1000 });
+  await expect(s.getByText('2 Karbon requests recorded.')).toBeVisible();
+  await expect(s.getByText("Karbon's timer was seen.")).toBeVisible();
+  const stored = await s.evaluate(() => (globalThis as any).chrome.storage.local.get('karbonProbe').then((r: any) => r.karbonProbe));
+  const list = Object.values(stored) as any[];
+  expect(list.map((e) => `${e.method} ${e.origin}${e.path}`).sort()).toEqual([
+    'GET https://us3.karbonhq.com/work/api/{key}/workItems', 'POST https://us3.karbonhq.com/time/api/{key}/stopwatches/{key}',
+  ]);
+  const sw = list.find((e) => e.method === 'POST');
+  expect(sw).toMatchObject({ auth: 'Bearer (JWT)', body: { WorkItemKey: 'string', Note: 'string' }, reply: { StopwatchKey: 'string', WorkItemTitle: 'string', ElapsedSeconds: 'number', StartedAt: 'date-string' } });
+  expect(list.find((e) => e.method === 'GET')).toMatchObject({ query: ['$filter'], reply: { value: [{ WorkItemKey: 'string', Title: 'string', ClientName: 'string' }] } });
+  expect(JSON.stringify(stored)).not.toMatch(/secret|jwt\.token|VAT|Year-end|Synthetic|private note|T1x2y3z4|U9k8j7h6|Wk1a2b3c4|5400/);
+  expect(await spills(s)).toEqual([]);
+});
