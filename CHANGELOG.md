@@ -2,6 +2,17 @@
 
 All notable changes to HourHop are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.4.0] - 2026-11-19
+
+### Added
+
+- Sign in with Karbon (beta): click one button in Settings and sign in on Karbon's own login page. No API keys, no email and no admin setup. HourHop asks for read-only access through Karbon's official MCP server and keeps no password or token.
+- Copy connection report: lists what Karbon's MCP server offers (tool names and descriptions only, none of your firm's data), so the next update can load your work items and clients from the sign-in.
+
+### Changed
+
+- HourHop now also asks for access to Karbon's sign-in and MCP servers, and to the local address Karbon's sign-in returns to.
+
 ## [0.3.0] - 2026-11-19
 
 ### Added

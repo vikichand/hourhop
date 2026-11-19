@@ -16,9 +16,15 @@ To build it:
 
 Automating Karbon's website to type entries in is out of scope: it would break Karbon's terms of use.
 
-## Per-person Karbon access
+## Work items from Sign in with Karbon
 
-**Status:** idea. Karbon has no "sign in with Karbon" for other apps, so the current integration uses the firm's API keys in each browser. A small server holding the keys and handing each colleague only their own work would remove firm-wide keys from browsers, and is a prerequisite for a public Chrome Web Store listing.
+**Status:** next, waiting on one connection report. **Depends on:** one colleague signing in once.
+
+Sign in with Karbon (0.4.0, beta) uses Karbon's official MCP server with each colleague's own login and read-only scope, so firm-wide keys are no longer needed. Karbon does not publish the MCP server's tool list, so 0.4.0 only lists the tools. To finish it:
+
+1. One colleague clicks **Sign in with Karbon**, then **Copy connection report**, and sends the report (tool names and descriptions only, no firm data).
+2. Map the read-only tools for "my assigned work", clients and estimates to HourHop's catalog and budgets, behind an allowlist of tool names; never call a tool marked as writing.
+3. Keep the access token for the session (and request `offline_access` for a refresh token only once it is stored and revocable), refresh the work list every 15 minutes as the key-based sync does, and add Sign out.
 
 ## Smaller items
 

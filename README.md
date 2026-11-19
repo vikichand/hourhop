@@ -20,7 +20,15 @@ Requires Chrome 123 or newer. If your organization manages Chrome, Developer mod
 
 ## Connect Karbon
 
-Karbon has no "sign in with Karbon" for other apps, so HourHop uses the same two keys any Karbon API integration uses. Your firm's Karbon admin sets this up once:
+### Sign in with Karbon (beta)
+
+Open HourHop **Settings** and click **Sign in with Karbon**. Karbon's own login page opens in a small window; sign in as you normally do, and the window closes by itself. There are no keys, no email to type and nothing for an admin to set up. HourHop asks Karbon for read-only access only, through Karbon's official MCP server (the same sign-in Claude uses to connect to Karbon).
+
+This beta checks the connection and prepares a **connection report**: the list of tools Karbon's MCP server offers, with none of your firm's data. Karbon does not publish that list, so the first person to sign in should click **Copy connection report** and send it to whoever maintains HourHop. The next update uses it to load your work items and clients automatically.
+
+### Connect with your firm's API keys
+
+The other way in is Karbon's REST API, which uses two firm-wide keys instead of a personal sign-in. It already loads your assigned work and budgets today. Your firm's Karbon admin sets this up once:
 
 1. Register a developer account at [developers.karbonhq.com/register](https://developers.karbonhq.com/register) and ask Karbon to enable API v3 for the firm (Karbon turns it on by request). Karbon sends the **Application ID** by secure message when the application is registered.
 2. In Karbon, go to **Settings**, then **Connected Apps**, then **API Applications**, and open the application. Both keys are listed there: the Application ID (sent as the bearer token) and the **AccessKey**.
@@ -37,7 +45,7 @@ What happens next:
 Please know before connecting:
 
 - **The keys give full access to the whole firm's Karbon data.** Karbon's API uses the same two keys to read and to create, change or delete contacts, work items, notes and more, and Karbon documents no read-only key. HourHop only reads your assigned work and its budgets, but the keys themselves are not limited to you or to reading. Treat them like an admin password. They are stored only in this browser profile, are sent only to `https://api.karbonhq.com`, are never shown again after saving, and are removed by **Disconnect** or **Delete all data**.
-- **HourHop never writes to Karbon.** Every request is a read (`GET`), enforced by tests on the shipped build.
+- **HourHop never writes to Karbon.** With keys, every request is a read (`GET`). With Sign in with Karbon, HourHop asks only for read-only access, refuses a sign-in that grants more, and calls no Karbon tool that could change anything. Tests on the shipped build enforce both.
 - **Not yet verified against a live Karbon account.** The integration is built and tested against Karbon's published API specification ([karbonhq/karbon-api-reference](https://github.com/karbonhq/karbon-api-reference), version of 29 October 2026, last checked 19 November 2026) with a simulated Karbon that behaves as that specification describes. If connecting fails, the message says why (rejected keys, API access not enabled, email not found, network); please open an issue with that message.
 
 ## Using it day to day
@@ -84,7 +92,7 @@ All screenshots are from the real extension with made-up data. The Karbon ones u
 
 ## Privacy
 
-Everything stays in your browser profile (IndexedDB). There are no analytics. HourHop asks for the `sidePanel` permission and access to one site, Karbon's API at `api.karbonhq.com`; it makes no network request at all until you enter Karbon keys, and then only reads from that API. Uninstalling the extension or clearing site data deletes your data, so export first.
+Everything stays in your browser profile (IndexedDB). There are no analytics. HourHop asks for the `sidePanel` permission and access to Karbon only: its API (`api.karbonhq.com`), its sign-in server (`identity.karbonhq.com`), its MCP server (`mcp.karbonhq.com`), and the local address `127.0.0.1:53682` that Karbon's sign-in returns to, so HourHop can read the sign-in result. It makes no network request at all until you sign in or enter Karbon keys, and then only reads. Sign in with Karbon keeps no password or token. Uninstalling the extension or clearing site data deletes your data, so export first.
 
 ## Build from source
 
